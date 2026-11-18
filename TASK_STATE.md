@@ -47,3 +47,12 @@
 
 ## Local country names (branch feat/local-names)
 - [x] Local names for all 50 countries, shown beside English names — src/data/local-names.ts, NewGame/Game/Nation/Retired
+
+## Systems play differently (branch feat/systems-differ)
+- [x] System rules engine — src/sim/systems.ts
+- [x] Politicians, leader personalities, faith — src/sim/people.ts, src/data/people.ts
+- [x] 102 new events (Sonnet) + wiring — src/data/more-events.ts, career.ts
+- [x] Diplomacy: summits, aid, alliances, reactions — src/sim/nation.ts
+- [x] Tests — src/sim/people.test.ts; save v6
+- [x] Screens (Sonnet) — People.tsx, SystemPanel.tsx, Nation.tsx, NewGame.tsx
+- [x] Bug hunts (robot 8 systems, 43 browser saves + v5 save migration), play link v7, PR

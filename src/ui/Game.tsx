@@ -22,6 +22,11 @@ import { Nation } from './Nation';
 import { Retired } from './Retired';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 import { countryLabel } from '../data/local-names';
+import { SYSTEM_RULES } from '../data/people';
+import { People, FaithPanel } from './People';
+import { SystemPanel } from './SystemPanel';
+import { eventExtras } from './effects';
+import { contactById } from '../sim/people';
 
 const n0 = (n: number) => Math.round(n).toString();
 const fmt = (n: number, d = 1) => n.toFixed(d);
@@ -95,6 +100,7 @@ export function Game() {
           <div><b>{n0(p.popularity)}</b><span>Popularity</span></div>
           <div><b>${n0(p.funds)}k</b><span>Campaign funds</span></div>
           {money && <div><b className={money.value < 0 ? 'neg' : ''}>{money.bn ? `$${money.value.toFixed(1)}bn` : money.debt ? `${Math.round(money.value)}%` : k(money.value)}</b><span>{money.label}{money.debt && p.nation && ` · yearly ${deficit(p.nation) > 0 ? 'deficit' : 'surplus'} ${Math.abs(deficit(p.nation)).toFixed(1)}%`}{money.perMonth !== undefined && ` (+${k(money.perMonth)}/mo)`}</span></div>}
+          <div title={SYSTEM_RULES[home.systemId].meterBlurb}><b>{n0(p.sys.meter)}</b><span>{SYSTEM_RULES[home.systemId].meter}</span></div>
           <div><b>{n0(p.loyalty)}</b><span>{STANDING_LABEL[sys.advancement]}</span></div>
           <div><b>{p.actionsLeft}</b><span>Actions</span></div>
         </div>
@@ -143,6 +149,9 @@ export function Game() {
       </div>
 
       <VoterGroups />
+      <SystemPanel />
+      <People />
+      <FaithPanel />
 
       {governor && (
         <>
@@ -218,7 +227,7 @@ export function Game() {
             <div className="actions">
               {p.pendingEvent.choices.map((ch, i) => {
                 const m = moneyChange(p, ch.effects, home);
-                return <button key={i} className="action" onClick={() => resolveEvent(i)}>{ch.label}{m.map((t) => <small key={t} className="money">{t}</small>)}</button>;
+                return <button key={i} className="action" onClick={() => resolveEvent(i)}>{ch.label}{eventExtras(ch.effects, home.systemId, contactById(p, p.pendingEvent!.contactId)?.name).map((x) => <small key={x.text} className={x.good ? 'pos' : 'neg'}>{x.text}</small>)}{m.map((t) => <small key={t} className="money">{t}</small>)}</button>;
               })}
             </div>
           </div>
