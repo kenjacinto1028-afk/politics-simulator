@@ -18,8 +18,6 @@ export function SystemPanel() {
   const book = lawBook(p);
   const open = book ? book.defs.filter((l) => !book.ids.includes(l.id)) : [];
   const patron = contactById(p, p.sys.patronId ?? undefined);
-  const why = (r: string | null, fallback: string) => r ?? fallback;
-  const noOffice = !p.office ? 'Hold office first' : null;
   return (
     <div className="panel">
       <h3>How power works here <span className="muted">({SYSTEMS[sid].name})</span></h3>
@@ -46,11 +44,11 @@ export function SystemPanel() {
         </div>
       )}
 
-      {sid === 'parliamentary' && <div className="row"><button className="action" disabled={busy || !!noOffice} title={why(noOffice, '')} onClick={g.consultCoalition}>Consult coalition<small>{noOffice ?? 'Keeps your partner happy'}</small></button></div>}
+      {sid === 'parliamentary' && <div className="row"><button className="action" disabled={busy} onClick={g.consultCoalition}>Consult coalition<small>Keeps your partner happy</small></button></div>}
 
       {sid === 'semi-presidential' && (
         <div className="row">
-          <button className="action" disabled={busy || !!noOffice} onClick={g.negotiateUnions}>Negotiate with unions<small>{noOffice ?? 'Restores public patience'}</small></button>
+          <button className="action" disabled={busy} onClick={g.negotiateUnions}>Negotiate with unions<small>Restores public patience</small></button>
           {p.sys.cohabitation && <span className="badge warn">Cohabitation: a rival shares power</span>}
         </div>
       )}
@@ -72,12 +70,10 @@ export function SystemPanel() {
 
       {sid === 'federal' && (
         <div className="row">
-          {kind === 'head' || !p.office ? <p className="muted small-text">{kind === 'head' ? 'Heads of government deal with governors instead.' : 'Hold office first.'}</p> : (
-            <>
-              <button className="action" disabled={busy} onClick={g.lobbyCapital}>Lobby the capital<small>Better ties, more grants</small></button>
-              <button className="action" disabled={busy} onClick={g.defyCapital}>Defy the capital<small>Local fans, worse ties</small></button>
-            </>
-          )}
+          {kind === 'head'
+            ? <button className="action" disabled={busy} onClick={g.lobbyCapital}>Work with the governors<small>Helps your laws pass</small></button>
+            : <button className="action" disabled={busy} onClick={g.lobbyCapital}>Lobby the capital<small>Better ties, more grants</small></button>}
+          {p.office && kind !== 'head' && <button className="action" disabled={busy} onClick={g.defyCapital}>Defy the capital<small>Local fans, worse ties</small></button>}
         </div>
       )}
 

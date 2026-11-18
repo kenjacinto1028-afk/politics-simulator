@@ -56,3 +56,8 @@
 - [x] Tests — src/sim/people.test.ts; save v6
 - [x] Screens (Sonnet) — People.tsx, SystemPanel.tsx, Nation.tsx, NewGame.tsx
 - [x] Bug hunts (robot 8 systems, 43 browser saves + v5 save migration), play link v7, PR
+
+## Bug hunt before play link (branch feat/systems-differ)
+- [x] Fuzz robot, every action with random args, 8 systems — src/sim/fuzz.test.ts
+- [x] Fixes: dead buttons (feud leader as minister, coalition/unions/governors), events needing office fired out of office, endorsements carried to a new race, dividends too big, one-party without patron too harsh
+- [x] Browser: phone width + dead-button check on 43 saves; merge, play link

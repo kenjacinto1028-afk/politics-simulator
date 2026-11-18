@@ -136,7 +136,7 @@ export function tickSystem(g: GameState, happiness: number, rng: Rng): { game: G
     }
     case 'one-party': {
       const patron = contactById(p, sys.patronId ?? undefined);
-      sys.meter = clamp(approach(patron ? 25 + patron.relation * 0.5 : 20, 0.05), 0, 100);
+      sys.meter = clamp(approach(patron ? 30 + patron.relation * 0.5 : 35, 0.05), 0, 100);
       if (g.turn - sys.lastPurgeTurn >= PURGE_EVERY) {
         sys.lastPurgeTurn = g.turn;
         lines.push('The party launches an anti-corruption campaign. Inspectors fan out across the country.');
@@ -182,7 +182,7 @@ export function tickSystem(g: GameState, happiness: number, rng: Rng): { game: G
       const target = 50 + (happiness - 50) * 0.8 + (country.economy.growth - 2) * 3;
       sys.meter = clamp(approach(target, 0.1) + (rng() - 0.5) * 4, 0, 100);
       if (p.office) {
-        p = { ...p, funds: p.funds + Math.round(sys.meter * 0.15) };
+        p = { ...p, funds: p.funds + Math.round(sys.meter * 0.08) };
         if (sys.meter < 20 && kind !== 'head' && rng() < 0.1) {
           lines.push(`A hostile takeover: the board replaces ${p.name}.`);
           p = { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, termsInOffice: 0 };

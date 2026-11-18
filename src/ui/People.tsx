@@ -48,7 +48,7 @@ function ContactCard({ c, systemId }: { c: Contact; systemId: string }) {
         <button className="small" disabled={busy} title={corrupt ? 'Expects a $10k gift' : undefined} onClick={() => meetContact(c.id)}>Meet{corrupt ? ' ($10k gift)' : ''}</button>
         {c.rung >= 0 && <button className="small" disabled={busy || !!endorse} title={endorse ?? 'Ask them to back your campaign'} onClick={() => askEndorsement(c.id)}>Ask for endorsement</button>}
         {c.rung >= 0 && c.rung === currentRung(game) && <button className="small" disabled={busy || !!deal} title={deal ?? dealName} onClick={() => jointDeal(c.id)}>{dealName}</button>}
-        <button className="small secondary" disabled={busy} title="Pleases your base, but makes an enemy" onClick={() => feud(c.id)}>Attack publicly</button>
+        <button className="small secondary" disabled={busy || (c.id === 'leader' && kind === 'cabinet')} title={c.id === 'leader' && kind === 'cabinet' ? 'You serve in their cabinet' : 'Pleases your base, but makes an enemy'} onClick={() => feud(c.id)}>Attack publicly</button>
         {systemId === 'one-party' && <button className="small" disabled={busy || !!patron} title={patron ?? 'They will sponsor your career'} onClick={() => choosePatron(c.id)}>Make my patron</button>}
       </div>
       {c.rung >= 0 && (endorse || deal) && <p className="muted small-text">{[endorse && `Endorsement: ${endorse}`, deal && `Deal: ${deal}`].filter(Boolean).join(' · ')}</p>}

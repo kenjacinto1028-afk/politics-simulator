@@ -288,7 +288,9 @@ export function runForHigher(g: GameState, office: OfficeId, rng: Rng): GameStat
   if (!p?.office || p.actionsLeft <= 0 || p.termMonthsLeft > CAMPAIGN_MONTHS) return g;
   if (p.campaign && !(p.campaign.incumbent && p.campaign.office === p.office)) return g;
   const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, false)), poll: 50, incumbent: false };
-  const player = { ...p, actionsLeft: p.actionsLeft - 1, campaign: { ...c, poll: pollShare(g, p, c, rng) } };
+  // Endorsements were for the old race; ask again for the new one.
+  const fresh = clearEndorsements(p);
+  const player = { ...fresh, actionsLeft: p.actionsLeft - 1, campaign: { ...c, poll: pollShare(g, fresh, c, rng) } };
   return log({ ...g, player }, `${p.name} skips re-election and runs for ${OFFICE_NAMES[office]}. Opponent: ${c.rival.name} (${c.rival.party}).`);
 }
 
@@ -327,7 +329,7 @@ function eventPool(g: GameState): EventDef[] {
   const p = g.player!;
   const c = g.countries[p.countryId];
   const kind = kindOf(p.office) ?? 'out';
-  const extra = MORE_EVENTS.filter((e) => (!e.kinds || e.kinds.includes(kind)) && (!e.systems || e.systems.includes(c.systemId))
+  const extra = MORE_EVENTS.filter((e) => (e.kinds ? e.kinds.includes(kind) : kind !== 'out') && (!e.systems || e.systems.includes(c.systemId))
     && (e.minReligiosity === undefined || c.religiosity >= e.minReligiosity) && (!e.about || contactsByRole(g, e.about).length > 0));
   return [...(p.office ? basePool(p) : []), ...extra];
 }
