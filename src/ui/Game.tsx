@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
 import { ACTION_INFO, STANDING_LABEL, availableActions, comebackOptions } from '../sim/career';
@@ -18,7 +18,7 @@ import { kindOf } from '../sim/offices';
 import { Legislator, VoteModal } from './Legislator';
 import { k, moneyChange, treasuryOf } from './money';
 import { Cabinet, AskModal } from './Cabinet';
-import { Nation } from './Nation';
+import { Nation, Diplomacy } from './Nation';
 import { Retired } from './Retired';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 import { countryLabel } from '../data/local-names';
@@ -27,6 +27,23 @@ import { People, FaithPanel } from './People';
 import { SystemPanel } from './SystemPanel';
 import { eventExtras } from './effects';
 import { contactById } from '../sim/people';
+
+function useIsPhone() {
+  const q = '(max-width: 760px)';
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(q).matches);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const m = window.matchMedia(q);
+    const on = () => setPhone(m.matches);
+    on();
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return phone;
+}
+
+type Tab = 'job' | 'voters' | 'people' | 'world' | 'more';
+const TABS: [Tab, string][] = [['job', 'Job'], ['voters', 'Voters'], ['people', 'People'], ['world', 'World'], ['more', 'More']];
 
 const n0 = (n: number) => Math.round(n).toString();
 const fmt = (n: number, d = 1) => n.toFixed(d);
@@ -57,6 +74,9 @@ function BudgetEditor({ city }: { city: City }) {
 export function Game() {
   const { game, nextTurn, act, resolveEvent, runAgain, quitToMenu } = useGame();
   const [showWorld, setShowWorld] = useState(false);
+  const phone = useIsPhone();
+  const [tab, setTab] = useState<Tab>('job');
+  const on = (t: Tab) => !phone || tab === t;
   const p = game.player!;
   const home = game.countries[p.countryId];
   const sys = SYSTEMS[home.systemId];
@@ -84,9 +104,11 @@ export function Game() {
   const title = p.office ? `${OFFICE_NAMES[p.office]}${where}` : c ? `Candidate for ${OFFICE_NAMES[c.office]}` : 'Out of office';
 
   if (p.retired) return <Retired />;
+  const blockedNext = !!p.pendingEvent || bill || voting || asking;
+  const needsAnswer = blockedNext;
 
   return (
-    <div className="grid">
+    <div className={phone ? 'grid phone' : 'grid'}>
       <div className="panel header">
         <div>
           <h2>{p.name}</h2>
@@ -104,13 +126,15 @@ export function Game() {
           <div><b>{n0(p.loyalty)}</b><span>{STANDING_LABEL[sys.advancement]}</span></div>
           <div><b>{p.actionsLeft}</b><span>Actions</span></div>
         </div>
-        <div className="row">
-          <button onClick={nextTurn} disabled={!!p.pendingEvent || bill || voting || asking}>Next month →</button>
-          <button className="secondary small" onClick={quitToMenu}>Main menu</button>
-        </div>
+        {!phone && (
+          <div className="row">
+            <button onClick={nextTurn} disabled={blockedNext}>Next month →</button>
+            <button className="secondary small" onClick={quitToMenu}>Main menu</button>
+          </div>
+        )}
       </div>
 
-      {c && (
+      {on('job') && c && (
         <div className="panel">
           <h3>Campaign: {OFFICE_NAMES[c.office]}{c.incumbent ? ' (re-election)' : ''}</h3>
           <p>{c.monthsLeft} month{c.monthsLeft === 1 ? '' : 's'} to {sys.advancement === 'election' ? 'election day' : sys.advancement === 'shares' ? 'the shareholder vote' : 'the party decision'}.</p>
@@ -123,7 +147,7 @@ export function Game() {
         </div>
       )}
 
-      {!c && !p.office && (
+      {on('job') && !c && !p.office && (
         <div className="panel">
           <h3>Out of office</h3>
           <p>You lost your last race, but politics is a long game. Build up your popularity and funds, then pick your next run.</p>
@@ -133,7 +157,7 @@ export function Game() {
         </div>
       )}
 
-      <div className="panel">
+      {on('voters') && <div className="panel">
         <h3>Actions <span className="muted">({p.actionsLeft} left this month)</span></h3>
         <div className="actions">
           {actions.map((a) => {
@@ -146,14 +170,14 @@ export function Game() {
             );
           })}
         </div>
-      </div>
+      </div>}
 
-      <VoterGroups />
-      <SystemPanel />
-      <People />
-      <FaithPanel />
+      {on('voters') && <VoterGroups />}
+      {on('people') && <SystemPanel />}
+      {on('people') && <People />}
+      {on('voters') && <FaithPanel />}
 
-      {governor && (
+      {on('job') && governor && (
         <>
           <StateOverview />
           <Cities />
@@ -162,11 +186,12 @@ export function Game() {
         </>
       )}
 
-      {lawmaker && <Legislator />}
-      {minister && <Cabinet />}
-      {leader && <Nation />}
+      {on('job') && lawmaker && <Legislator />}
+      {on('job') && minister && <Cabinet />}
+      {on('job') && leader && <Nation part={phone ? 'job' : 'all'} />}
+      {phone && tab === 'world' && leader && <Diplomacy />}
 
-      {!governor && !lawmaker && !minister && !leader && city && (
+      {on('job') && !governor && !lawmaker && !minister && !leader && city && (
         <div className="panel">
           <h3>{city.name} <span className="muted">pop. {n0(city.population)}k</span></h3>
           <div className="cols">
@@ -183,19 +208,19 @@ export function Game() {
         </div>
       )}
 
-      {kind === 'local' && city && <Council />}
-      {kind === 'local' && city && <Projects />}
-      {kind === 'local' && city && <Laws />}
-      {p.office && <HigherOffice />}
+      {on('job') && kind === 'local' && city && <Council />}
+      {on('job') && kind === 'local' && city && <Projects />}
+      {on('job') && kind === 'local' && city && <Laws />}
+      {on('job') && p.office && <HigherOffice />}
 
-      <div className="panel">
+      {on('world') && <div className="panel">
         <h3>News</h3>
         <ul className="news">{game.log.slice(0, 12).map((l, i) => <li key={i}>{l}</li>)}</ul>
-      </div>
+      </div>}
 
-      <div className="panel">
-        <h3>World <button className="small secondary" onClick={() => setShowWorld(!showWorld)}>{showWorld ? 'Hide' : 'Show'}</button></h3>
-        {showWorld && (
+      {on('world') && <div className="panel">
+        <h3>World {!phone && <button className="small secondary" onClick={() => setShowWorld(!showWorld)}>{showWorld ? 'Hide' : 'Show'}</button>}</h3>
+        {(showWorld || phone) && (
           <div className="scroll">
             <table>
               <thead><tr><th>Country</th><th>System</th><th>Leader</th><th>Approval</th><th>GDP $bn</th><th>Growth</th><th>Unemp.</th></tr></thead>
@@ -210,9 +235,23 @@ export function Game() {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
-      <SaveMenu canSave />
+      {on('more') && <SaveMenu canSave />}
+      {phone && tab === 'more' && <button className="secondary" onClick={quitToMenu}>Main menu</button>}
+
+      {phone && (
+        <nav className="bottombar">
+          <div className="tabs">
+            {TABS.map(([t, label]) => (
+              <button key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => { setTab(t); window.scrollTo(0, 0); }}>
+                {label}{t === 'job' && needsAnswer && <i className="dot" />}
+              </button>
+            ))}
+          </div>
+          <button className="next" onClick={nextTurn} disabled={blockedNext}>Next month · {p.actionsLeft} action{p.actionsLeft === 1 ? '' : 's'} left</button>
+        </nav>
+      )}
 
       {p.pendingEvent ? (
         <div className="modal">

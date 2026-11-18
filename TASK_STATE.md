@@ -61,3 +61,8 @@
 - [x] Fuzz robot, every action with random args, 8 systems — src/sim/fuzz.test.ts
 - [x] Fixes: dead buttons (feud leader as minister, coalition/unions/governors), events needing office fired out of office, endorsements carried to a new race, dividends too big, one-party without patron too harsh
 - [x] Browser: phone width + dead-button check on 43 saves; merge, play link
+
+## Mobile view (branch feat/mobile)
+- [x] Phone layout: bottom tab bar + Next month, 44px tap targets, readable text, stacked diplomacy cards, bottom-sheet popups (Sonnet) — Game.tsx, Nation.tsx, index.css
+- [x] Phone tests on 43 saves; fixed zoomed-out World tab (grid min-width) and popups behind tab bar (z-index)
+- [x] Merge, play link
