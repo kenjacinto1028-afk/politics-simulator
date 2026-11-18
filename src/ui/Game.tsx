@@ -228,7 +228,8 @@ export function Game() {
 
       {on('world') && <div className="panel">
         <h3>World {!phone && <button className="small secondary" onClick={() => setShowWorld(!showWorld)}>{showWorld ? 'Hide' : 'Show'}</button>}</h3>
-        {(showWorld || phone) && (
+        {(showWorld || phone) && (<>
+          <p className="scroll-hint">Swipe the table sideways to see more.</p>
           <div className="scroll">
             <table>
               <thead><tr><th>Country</th><th>Power</th><th>Army</th><th>Bloc</th><th>System</th><th>Leader</th><th>Approval</th><th>GDP $bn</th><th>Growth</th><th>Unemp.</th></tr></thead>
@@ -242,7 +243,7 @@ export function Game() {
               </tbody>
             </table>
           </div>
-        )}
+        </>)}
       </div>}
 
       {on('more') && <CareerSoFar />}

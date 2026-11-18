@@ -103,3 +103,8 @@
 - [x] Offers and demands to the player, with expiry — src/sim/ai.ts, src/ui/WorldPower.tsx
 - [x] Tests (118), fuzz, 43-save browser check
 - [x] PR, merge, play link
+
+## GitHub Pages + phone view (branch feat/pages-mobile)
+- [x] gh-pages branch + auto-deploy workflow — .github/workflows/pages.yml
+- [x] Phone fixes: folded diplomacy actions, table wrapping, stat values — src/index.css, src/ui/Nation.tsx, Game.tsx, Career.tsx
+- [ ] Images, music and sound: waiting for Kenneth to pick

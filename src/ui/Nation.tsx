@@ -187,6 +187,8 @@ export function Diplomacy() {
                   <td className="small-text">{c.leader.name}{c.junta && <span className="badge warn">Military rule</span>}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}{c.decisions?.[0] && <><br />Latest: {c.decisions[0]}</>}</span></td>
                   <td className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</td>
                   <td>
+                    <details>
+                    <summary>Actions</summary>
                     <div className="row">
                       <button className="small" disabled={blocked} onClick={() => stateVisit(c.id)}>State visit</button>
                       <button className="small" disabled={blocked || !canTrade} title={dealt ? 'Already signed' : `Needs relations of ${TRADE_MIN_RELATION}+`} onClick={() => tradeDeal(c.id)}>Trade deal</button>
@@ -198,6 +200,7 @@ export function Diplomacy() {
                       <SpyRow target={c.id} />
                       <button className="small secondary" disabled={blocked || !canWar} title={n.war ? 'You are already at war' : shield ?? `Needs relations of ${WAR_MAX_RELATION} or worse`} onClick={() => declareWar(c.id)}>Declare war{shield ? ' (nuclear deterrence)' : ''}</button>
                     </div>
+                    </details>
                   </td>
                 </tr>
               );

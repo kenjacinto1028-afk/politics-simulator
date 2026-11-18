@@ -110,12 +110,15 @@ button.action small.money { opacity: 0.9; }
   .kpis b { font-size: 17px; }
   .kpis span { line-height: 1.2; }
   .cols, .card-grid { grid-template-columns: 1fr; gap: 12px; }
-  .stat, .stat.wide { grid-template-columns: 84px 1fr 32px; }
+  .stat, .stat.wide { grid-template-columns: 84px 1fr 44px; }
+  .stat > :last-child { white-space: nowrap; text-align: right; }
   /* Grid and flex children default to min-width:auto and grow to fit wide tables; let them shrink so .scroll can scroll. */
   .grid > *, .panel, .cols > *, .card-grid > * { min-width: 0; }
   html, body { overflow-x: hidden; }
   .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
-  .scroll table { min-width: 520px; }
+  .scroll table { min-width: 620px; }
+  .scroll td, .scroll th { overflow-wrap: normal; word-break: normal; }
+  .scroll-hint { display: block; }
   .dip .scroll table { min-width: 0; }
   .dip table, .dip tbody, .dip tr, .dip td { display: block; width: 100%; box-sizing: border-box; }
   .dip thead { display: none; }
@@ -139,3 +142,9 @@ button.action small.money { opacity: 0.9; }
   label { margin: 10px 0; }
   label select, label input:not([type=range]):not([type=checkbox]):not([type=radio]) { width: 100%; margin-top: 4px; }
 }
+
+.scroll-hint { display: none; font-size: 13px; color: #9aa0ad; margin: 0 0 4px; }
+.dip details > summary { cursor: pointer; color: #8fb4ff; padding: 6px 0; list-style: none; }
+.dip details > summary::-webkit-details-marker { display: none; }
+.dip details > summary::before { content: '▸ '; }
+.dip details[open] > summary::before { content: '▾ '; }
