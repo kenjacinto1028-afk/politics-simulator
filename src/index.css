@@ -72,3 +72,12 @@ ul.plain { margin: 0; padding-left: 18px; }
 .money-line { background: #262a35; border-radius: 6px; padding: 6px 10px; font-size: 13px; margin: 8px 0; }
 button.action small.money { opacity: 0.9; }
 @media (max-width: 700px) { .kpis { justify-content: flex-start; } .modal .panel { max-height: 90vh; overflow-y: auto; box-sizing: border-box; } }
+.badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: #2c303b; margin-left: 6px; font-weight: normal; }
+.badge.good { background: #24523a; }
+.badge.warn { background: #5c3a24; }
+.tag { display: inline-block; font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #2c303b; margin: 0 4px 4px 0; cursor: help; }
+.relbar { position: relative; height: 8px; background: #2c303b; border-radius: 4px; overflow: hidden; margin: 6px 0; }
+.relbar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #666b78; }
+.relbar .fillrel { position: absolute; top: 0; bottom: 0; }
+.relbar .fillrel.up { background: #3fb36a; }
+.relbar .fillrel.down { background: #d0533f; }

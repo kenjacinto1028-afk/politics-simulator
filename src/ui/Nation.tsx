@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useGame } from '../store';
 import { NATIONAL_LAWS, PRIORITY_LABEL, type NationalPriority } from '../data/nation-content';
-import { ADDRESS_COOLDOWN, TRADE_MIN_RELATION, WAR_MAX_RELATION, canAddress, deficit, forecastNationalLaw, peaceChance, relationWith, removalRisk, totalSpending } from '../sim/nation';
+import { ADDRESS_COOLDOWN, TRADE_MIN_RELATION, WAR_MAX_RELATION, canAddress, deficit, SUMMIT_COOLDOWN, allianceBlocker, canHostSummit, forecastNationalLaw, peaceChance, relationWith, removalRisk, totalSpending } from '../sim/nation';
 import type { Nation as NationT } from '../sim/types';
 import { Effects } from './effects';
 import { Stat } from './Stat';
+import { parliamentShift } from '../sim/systems';
+import { TRAITS } from '../data/people';
 import { countryLabel } from '../data/local-names';
 
 const f1 = (n: number) => n.toFixed(1);
@@ -125,7 +127,7 @@ function NationalLaws() {
       <h4>Available laws</h4>
       <div className="card-grid">
         {available.map((l) => {
-          const fc = forecastNationalLaw(p, l);
+          const fc = forecastNationalLaw(p, l, parliamentShift(game));
           return (
             <div key={l.id} className="card">
               <b>{l.name}</b>
@@ -142,7 +144,7 @@ function NationalLaws() {
 }
 
 function Diplomacy() {
-  const { game, stateVisit, tradeDeal, sanction, declareWar, seekPeace } = useGame();
+  const { game, stateVisit, tradeDeal, sanction, declareWar, seekPeace, hostSummit, foreignAid, formAlliance } = useGame();
   const blocked = useBlocked();
   const p = game.player!;
   const n = p.nation!;
@@ -157,9 +159,12 @@ function Diplomacy() {
           <button className="small" disabled={blocked} onClick={seekPeace}>Seek peace ({Math.round(peaceChance(game) * 100)}% chance)</button>
         </div>
       )}
+      <div className="row">
+        <button className="action" disabled={blocked || !canHostSummit(game)} onClick={hostSummit}>Host summit<small>{canHostSummit(game) ? '$5bn · everyone warms to you' : `Once every ${SUMMIT_COOLDOWN} months (${Math.max(1, SUMMIT_COOLDOWN - (game.turn - n.lastSummitTurn))} to go)`}</small></button>
+      </div>
       <div className="scroll">
         <table>
-          <thead><tr><th>Country</th><th>Relations</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Country</th><th>Leader</th><th>Relations</th><th>Actions</th></tr></thead>
           <tbody>
             {others.map((c) => {
               const rel = relationWith(game, c.id);
@@ -168,12 +173,15 @@ function Diplomacy() {
               const canWar = !n.war && rel <= WAR_MAX_RELATION;
               return (
                 <tr key={c.id}>
-                  <td>{countryLabel(c)}{dealt && <span className="pos small-text"> trade deal</span>}</td>
+                  <td>{countryLabel(c)}{dealt && <span className="pos small-text"> trade deal</span>}{n.alliances.includes(c.id) && <span className="badge good">Ally</span>}</td>
+                  <td className="small-text">{c.leader.name}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}</span></td>
                   <td className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</td>
                   <td>
                     <div className="row">
                       <button className="small" disabled={blocked} onClick={() => stateVisit(c.id)}>State visit</button>
                       <button className="small" disabled={blocked || !canTrade} title={dealt ? 'Already signed' : `Needs relations of ${TRADE_MIN_RELATION}+`} onClick={() => tradeDeal(c.id)}>Trade deal</button>
+                      <button className="small" disabled={blocked} title="$10bn, +12 relations" onClick={() => foreignAid(c.id)}>Foreign aid</button>
+                      <button className="small" disabled={blocked || !!allianceBlocker(game, c.id)} title={allianceBlocker(game, c.id) ?? 'Defense pact'} onClick={() => formAlliance(c.id)}>Alliance{allianceBlocker(game, c.id) && !n.alliances.includes(c.id) ? ` (${allianceBlocker(game, c.id)})` : ''}</button>
                       <button className="small secondary" disabled={blocked} onClick={() => sanction(c.id)}>Sanction</button>
                       <button className="small secondary" disabled={blocked || !canWar} title={n.war ? 'You are already at war' : `Needs relations of ${WAR_MAX_RELATION} or worse`} onClick={() => declareWar(c.id)}>Declare war</button>
                     </div>

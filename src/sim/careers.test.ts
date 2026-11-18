@@ -9,6 +9,8 @@ import { canAddress, courtParliament, nationalAddress } from './nation';
 import { PORTFOLIOS } from '../data/cabinet-content';
 import { SYSTEMS } from '../data/systems';
 import { kindOf } from './offices';
+import { askEndorsement, endorseBlocker, meetContact, visibleContacts } from './people';
+import { buyback, choosePatron, consultCoalition, lobbyCapital, negotiateUnions, patronBlocker, payRespects, royalOccasion } from './systems';
 import type { GameState, SystemId } from './types';
 
 /** First country of each system in the 10-country world. */
@@ -57,6 +59,26 @@ export function playMonth(g: GameState, rngSalt: number): GameState {
     if (!p.office && !p.campaign) { const opts = comebackOptions(g); g = runAgain(g, r(), opts[opts.length - 1]); continue; }
     if (p.actionsLeft <= 0) break;
     const before = g;
+    // Work the system's signature rule and the people around you.
+    const sysId = g.countries[p.countryId].systemId;
+    const m = p.sys.meter;
+    if (sysId === 'one-party' && !p.sys.patronId) {
+      const pat = visibleContacts(g).find((c) => !patronBlocker(g, c.id));
+      if (pat) { g = choosePatron(g, pat.id); if (g !== before) continue; }
+      const boss = visibleContacts(g).filter((c) => c.party === 'yours' && c.rung > Math.max(0, p.highestRung)).sort((a, b) => b.relation - a.relation)[0];
+      if (boss && k % 2 === 0) { g = meetContact(g, boss.id, r()); if (g !== before) continue; }
+    }
+    const upkeep = sysId === 'one-party' && p.sys.patronId && m < 55 ? payRespects(g, r())
+      : sysId === 'parliamentary' && m < 40 ? consultCoalition(g, r())
+      : sysId === 'semi-presidential' && m < 35 ? negotiateUnions(g, r())
+      : sysId === 'constitutional-monarchy' && m < 45 ? royalOccasion(g, r())
+      : sysId === 'federal' && m < 40 ? lobbyCapital(g, r())
+      : sysId === 'corporate-state' && m < 35 && p.funds > 60 ? buyback(g) : g;
+    if (upkeep !== g) { g = upkeep; continue; }
+    if (p.campaign) {
+      const backer = visibleContacts(g).find((c) => !endorseBlocker(p, c));
+      if (backer) { g = askEndorsement(g, backer.id); continue; }
+    }
     const next = nextOffice(g);
     if (next && !higherOfficeBlocker(g)) { g = runForHigher(g, next, r()); if (g !== before) continue; }
     const kind = kindOf(p.office);

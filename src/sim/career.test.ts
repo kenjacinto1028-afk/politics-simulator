@@ -56,6 +56,7 @@ describe('career', () => {
         wins += g.player!.record.won;
       }
       // Target roughly 50-75% for a diligent player.
+      if ((globalThis as { process?: { env: Record<string, string> } }).process?.env.DIAG) console.log(id, wins);
       expect(wins, id).toBeGreaterThanOrEqual(12);
       expect(wins, id).toBeLessThanOrEqual(26);
     }

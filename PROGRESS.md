@@ -15,3 +15,8 @@
 - Cabinet (ministry, initiatives, leader's trust, asks, reshuffles) and head of state (national budget, parliament, laws, diplomacy, war, removal, legacy, retirement) playable in all 8 systems.
 - Robot career test across all systems; browser click-through of 41 saves. Fixed a game-freezing leftover-prompt bug and city panels showing in national jobs.
 - Play link v5. 58 tests.
+
+## Systems play differently
+- Each system has its own rule and meter at every level (executive orders, coalition, public patience/strikes, royal favor/knighthood, patrons/purges, federal grants/defiance, referendums, share value/dividends).
+- Politicians at every level with personalities, endorsements, joint deals, feuds; leader personalities shape cabinet life and world diplomacy; faith and faith leaders; summits, aid, alliances; 102 new events.
+- 73 tests; robot careers in all 8 systems; browser check of 43 saves. Play link v7.

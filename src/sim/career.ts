@@ -11,8 +11,12 @@ import { newSeat, tickSeat } from './legislator';
 import { newMinistry, tickMinistry } from './cabinet';
 import { newNation, tickNation } from './nation';
 import { NATIONAL_EVENTS } from '../data/nation-content';
+import { MORE_EVENTS } from '../data/more-events';
+import { FAITHS } from '../data/people';
+import { clearEndorsements, contactsByRole, endorsementBonus, faithEdge, newContacts, resetDeals, setRelation, tickContacts, tickFaith } from './people';
+import { newSystemState, rollCohabitation, systemScoreBonus, tickSystem } from './systems';
 import type { Rng } from './rng';
-import type { AdvancementMode, Campaign, City, Effects, GameState, OfficeId, Player, Rival, SpendKey } from './types';
+import type { AdvancementMode, Campaign, City, Effects, EventDef, FaithId, GameState, OfficeId, PendingEvent, Player, Rival, SpendKey } from './types';
 
 export const ACTIONS_PER_MONTH = 3;
 export const CAMPAIGN_MONTHS = CAMPAIGN_MONTHS_CONST;
@@ -72,16 +76,19 @@ function scores(g: GameState, p: Player, c: Campaign) {
   const r = c.rival;
   const incumbency = c.incumbent ? clamp((officeHappiness(p) - 50) * 0.4 + 3, -10, 10) : 0;
   const groupsEdge = clamp((groupApproval(p) - 50) * 0.8, -12, 12);
+  // Who backs you, how faith leaders see you, and your system's signature rule.
+  const gp = { ...g, player: p };
+  const network = endorsementBonus(gp) + faithEdge(gp) + systemScoreBonus(gp, sys.ladder.indexOf(c.office) <= 0);
   let you: number, them: number;
   if (sys.advancement === 'appointment') {
-    you = p.loyalty * 1.2 + p.popularity * 0.3 + incumbency * 0.5 + groupsEdge * 0.3;
+    you = p.loyalty * 1.2 + p.popularity * 0.3 + incumbency * 0.5 + groupsEdge * 0.3 + network;
     them = r.popularity * 1.2 + (c.incumbent ? 30 : 44);
   } else if (sys.advancement === 'shares') {
-    you = p.loyalty * 1.2 + Math.sqrt(Math.max(0, p.funds)) * 1.5 + p.popularity * 0.3 + incumbency * 0.5 + groupsEdge * 0.3;
+    you = p.loyalty * 1.2 + Math.sqrt(Math.max(0, p.funds)) * 1.5 + p.popularity * 0.3 + incumbency * 0.5 + groupsEdge * 0.3 + network;
     them = r.popularity * 1.2 + Math.sqrt(r.funds) * 1.5 + 20;
   } else {
     // Money matters through what it buys (ads, rallies); a small war-chest bonus remains.
-    you = p.popularity + Math.sqrt(Math.max(0, p.funds)) * 0.5 + p.loyalty * 0.15 + incumbency + groupsEdge;
+    you = p.popularity + Math.sqrt(Math.max(0, p.funds)) * 0.5 + p.loyalty * 0.15 + incumbency + groupsEdge + network;
     them = r.popularity + Math.sqrt(r.funds) * 0.5 + 3;
   }
   return { you: Math.max(1, you), them: Math.max(1, them) };
@@ -112,7 +119,7 @@ function rivalStrength(g: GameState, p: Player, office: OfficeId, incumbent: boo
     return 15 + p.popularity * 0.58 + (60 - officeHappiness(p)) * 0.3 + partyRevenge;
   }
   const ladder = SYSTEMS[g.countries[p.countryId].systemId].ladder;
-  if (ladder.indexOf(office) <= 0) return 16;
+  if (ladder.indexOf(office) <= 0) return 18;
   return SYSTEMS[g.countries[p.countryId].systemId].advancement === 'election' ? 27 + p.popularity * 0.55 : 68;
 }
 
@@ -121,14 +128,16 @@ function makeCampaign(g: GameState, p: Player, office: OfficeId, incumbent: bool
   return { ...c, poll: pollShare(g, p, c, rng) };
 }
 
-export function startCareer(g: GameState, name: string, countryId: string, rng: Rng): GameState {
+export function startCareer(g: GameState, name: string, countryId: string, rng: Rng, faith?: FaithId): GameState {
   const sys = SYSTEMS[g.countries[countryId].systemId];
+  const myFaith = faith ?? g.countries[countryId].faith;
   const city = newCity(pick(CITY_NAMES, rng), rng);
   const player: Player = {
     name, countryId, office: null, popularity: 12, funds: 50, age: 30, loyalty: 20, actionsLeft: ACTIONS_PER_MONTH,
     campaign: null, city, termMonthsLeft: 0, pendingEvent: null, record: { won: 0, lost: 0 },
     groups: startingGroups(rng), monthsInOffice: 0, recentEvents: [], lastEventTurn: -99,
     region: null, seat: null, ministry: null, nation: null, retired: false, termsInOffice: 0, highestRung: -1,
+    faith: myFaith, clergy: 50, contacts: newContacts(g.countries[countryId], myFaith, rng), sys: newSystemState(),
   };
   player.campaign = makeCampaign(g, player, sys.ladder[0], false, rng);
   const verb = sys.advancement === 'election' ? 'announces a run' : sys.advancement === 'shares' ? 'seeks a board seat' : 'seeks party nomination';
@@ -174,6 +183,8 @@ export function applyEffects(p: Player, e: Effects): Player {
     popularity: clamp(p.popularity + (e.popularity ?? 0), 0, 100),
     funds: Math.max(0, p.funds + (e.funds ?? 0)),
     loyalty: clamp(p.loyalty + (e.loyalty ?? 0), 0, 100),
+    clergy: clamp(p.clergy + (e.clergy ?? 0), 0, 100),
+    sys: e.meter ? { ...p.sys, meter: clamp(p.sys.meter + e.meter, 0, 100) } : p.sys,
   };
 }
 
@@ -231,7 +242,9 @@ export function resolveEvent(g: GameState, choiceIndex: number): GameState {
     const debtToGdp = clamp(c.economy.debtToGdp - (choice.effects.treasury / c.economy.gdpBn) * 100, 0, 400);
     countries = { ...countries, [p.countryId]: { ...c, economy: { ...c.economy, debtToGdp } } };
   }
-  return log({ ...g, countries, player: { ...applyEffects(p, choice.effects), pendingEvent: null } }, `${ev.title}: ${choice.log}`);
+  let player: Player = { ...applyEffects(p, choice.effects), pendingEvent: null };
+  if (ev.contactId && choice.effects.contact) player = setRelation(player, ev.contactId, choice.effects.contact);
+  return log({ ...g, countries, player }, `${ev.title}: ${choice.log}`);
 }
 
 function resolveElection(g: GameState, rng: Rng): GameState {
@@ -256,11 +269,13 @@ function resolveElection(g: GameState, rng: Rng): GameState {
     if (newJob && kindOf(c.office) === 'cabinet') player = { ...player, ministry: newMinistry(g.countries[p.countryId]) };
     if (newJob && kindOf(c.office) === 'head') player = { ...player, ministry: null, nation: p.nation ?? newNation(g.countries[p.countryId], rng) };
     const k = kindOf(c.office);
+    player = resetDeals(clearEndorsements(player));
     const where = k === 'local' ? ` of ${p.city!.name}` : k === 'regional' ? ` of ${player.region!.name}` : k === 'head' ? ` of ${g.countries[p.countryId].name}` : '';
-    return log({ ...g, player }, `${p.name} ${c.incumbent ? 'is re-elected' : 'becomes'} ${office}${where} with ${how}.`);
+    const done = log({ ...g, player }, `${p.name} ${c.incumbent ? 'is re-elected' : 'becomes'} ${office}${where} with ${how}.`);
+    return newJob ? rollCohabitation(done, rng) : done;
   }
   // Any loss leaves you out of office: you gave up your old seat to run. Losing the top job ends your career.
-  const player: Player = { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, termsInOffice: 0, record, retired: atTop(g, p) };
+  const player: Player = { ...clearEndorsements(p), office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, termsInOffice: 0, record, retired: atTop(g, p) };
   return log({ ...g, player }, `${p.name} loses the race for ${office} to ${c.rival.name} (${how}) and is out of office.${player.retired ? ' The career is over.' : ''}`);
 }
 
@@ -273,7 +288,9 @@ export function runForHigher(g: GameState, office: OfficeId, rng: Rng): GameStat
   if (!p?.office || p.actionsLeft <= 0 || p.termMonthsLeft > CAMPAIGN_MONTHS) return g;
   if (p.campaign && !(p.campaign.incumbent && p.campaign.office === p.office)) return g;
   const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, false)), poll: 50, incumbent: false };
-  const player = { ...p, actionsLeft: p.actionsLeft - 1, campaign: { ...c, poll: pollShare(g, p, c, rng) } };
+  // Endorsements were for the old race; ask again for the new one.
+  const fresh = clearEndorsements(p);
+  const player = { ...fresh, actionsLeft: p.actionsLeft - 1, campaign: { ...c, poll: pollShare(g, fresh, c, rng) } };
   return log({ ...g, player }, `${p.name} skips re-election and runs for ${OFFICE_NAMES[office]}. Opponent: ${c.rival.name} (${c.rival.party}).`);
 }
 
@@ -301,10 +318,31 @@ export function keepsAppointment(g: GameState, p: Player): { ok: boolean; need: 
   return { ok: p.loyalty >= RECONFIRM_LOYALTY, need: `${who} standing at ${RECONFIRM_LOYALTY}+` };
 }
 
-function eventPool(p: Player) {
+function basePool(p: Player): PendingEvent[] {
   const kind = kindOf(p.office);
   if (kind === 'cabinet' || kind === 'head') return NATIONAL_EVENTS;
   return kind === 'regional' ? STATE_EVENTS : kind === 'legislative' ? LEGISLATIVE_EVENTS : CITY_EVENTS;
+}
+
+/** Events that fit your job, system and country right now. Out of office, only the new pool has events for you. */
+function eventPool(g: GameState): EventDef[] {
+  const p = g.player!;
+  const c = g.countries[p.countryId];
+  const kind = kindOf(p.office) ?? 'out';
+  const extra = MORE_EVENTS.filter((e) => (e.kinds ? e.kinds.includes(kind) : kind !== 'out') && (!e.systems || e.systems.includes(c.systemId))
+    && (e.minReligiosity === undefined || c.religiosity >= e.minReligiosity) && (!e.about || contactsByRole(g, e.about).length > 0));
+  return [...(p.office ? basePool(p) : []), ...extra];
+}
+
+/** Fill in names and places, and pick the politician the event is about. */
+function prepareEvent(g: GameState, ev: EventDef, rng: Rng): PendingEvent {
+  const p = g.player!;
+  const c = g.countries[p.countryId];
+  const who = ev.about ? pick(contactsByRole(g, ev.about), rng) : undefined;
+  const fill = (t: string) => t.replace(/\{name\}/g, who?.name ?? 'a colleague').replace(/\{role\}/g, who?.role ?? 'an official')
+    .replace(/\{city\}/g, p.city?.name ?? 'your city').replace(/\{country\}/g, c.name).replace(/\{leader\}/g, c.leader.name)
+    .replace(/\{faith\}/g, FAITHS[c.faith].name);
+  return { id: ev.id, title: fill(ev.title), text: fill(ev.text), choices: ev.choices.map((ch) => ({ ...ch, label: fill(ch.label), log: fill(ch.log) })), contactId: who?.id };
 }
 
 /** Drop the desk of a job you no longer hold, so its leftover prompts can't block the game. */
@@ -381,6 +419,15 @@ function tickPlayerInner(g: GameState, rng: Rng): GameState {
   } else {
     p = { ...p, popularity: clamp(p.popularity - 0.3, 0, 100) };
   }
+  // People, faith and your system's rules keep moving whether or not you hold office.
+  {
+    const tc = tickContacts({ ...world, player: p }, rng);
+    p = tickFaith({ ...world, player: tc.player });
+    done.push(...tc.lines);
+    const ts = tickSystem({ ...world, player: p }, officeHappiness(p), rng);
+    world = ts.game; p = ts.game.player!;
+    done.push(...ts.lines);
+  }
   if (p.office) p = { ...p, termMonthsLeft: p.termMonthsLeft - 1, monthsInOffice: p.monthsInOffice + 1 };
   // Lawmakers, ministers and leaders move their voter groups in their own ticks.
   if (kind === 'local' || kind === 'regional' || !kind) p = tickGroups(p, kind === 'regional' && p.region ? regionGroupTargets(p) : undefined);
@@ -422,10 +469,10 @@ function tickPlayerInner(g: GameState, rng: Rng): GameState {
 
   p = next.player!;
   const roll = rng();
-  if (p.office && !p.pendingEvent && next.turn - p.lastEventTurn >= EVENT_GAP && roll < EVENT_CHANCE) {
-    const pool = eventPool(p).filter((e) => !p.recentEvents.includes(e.id));
+  if (!p.retired && !p.pendingEvent && next.turn - p.lastEventTurn >= EVENT_GAP && roll < (p.office ? EVENT_CHANCE : EVENT_CHANCE * 0.5)) {
+    const pool = eventPool(next).filter((e) => !p.recentEvents.includes(e.id));
     if (pool.length) {
-      const ev = pick(pool, rng);
+      const ev = prepareEvent(next, pick(pool, rng), rng);
       next = { ...next, player: { ...p, pendingEvent: ev, recentEvents: [ev.id, ...p.recentEvents].slice(0, EVENT_MEMORY), lastEventTurn: next.turn } };
     }
   }

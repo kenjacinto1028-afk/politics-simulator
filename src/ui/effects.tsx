@@ -1,6 +1,7 @@
 import { GROUPS } from '../data/city-content';
 import { STAT_LABEL } from '../data/state-content';
-import type { GroupId } from '../sim/types';
+import { SYSTEM_RULES } from '../data/people';
+import type { Effects as EventEffectsT, GroupId, SystemId } from '../sim/types';
 
 const STAT_NAMES: Record<string, string> = { happiness: 'happiness', jobs: 'jobs', services: 'services', culture: 'culture', crime: 'crime', ...Object.fromEntries(Object.entries(STAT_LABEL).map(([k, v]) => [k, v.toLowerCase()])) };
 
@@ -27,4 +28,14 @@ export function Effects({ stats, groups, revenue }: { stats?: Partial<Record<str
 
 export function Forecast({ yes }: { yes: number }) {
   return <p className="small-text">Council forecast: <b className={yes >= 4 ? 'pos' : 'neg'}>{yes} of 7 likely yes</b></p>;
+}
+
+/** Faith, system-meter and relation changes from an event choice. */
+export function eventExtras(e: EventEffectsT, systemId: SystemId, contactName?: string): { text: string; good: boolean }[] {
+  const out: { text: string; good: boolean }[] = [];
+  const sg = (v: number) => `${v > 0 ? '+' : ''}${v}`;
+  if (e.clergy) out.push({ text: `Faith leaders ${sg(e.clergy)}`, good: e.clergy > 0 });
+  if (e.meter) out.push({ text: `${SYSTEM_RULES[systemId].meter} ${sg(e.meter)}`, good: e.meter > 0 });
+  if (e.contact) out.push({ text: `Relation with ${contactName ?? 'them'} ${sg(e.contact)}`, good: e.contact > 0 });
+  return out;
 }

@@ -9,6 +9,8 @@ function minister(seed = 3): GameState {
   const g0 = newGame(10, seed);
   const g = startCareer(g0, 'M', 'deu', rngFor(g0, 99));
   const p = g.player!;
+  // A plain leader: no traits that bend the numbers below.
+  g.countries.deu = { ...g.countries.deu, leader: { ...g.countries.deu.leader, traits: ['charismatic', 'reformer'], focus: 'diplomacy' } };
   return { ...g, player: { ...p, office: 'minister', campaign: null, termMonthsLeft: 60, highestRung: 2, termsInOffice: 1, popularity: 50, ministry: newMinistry(g.countries.deu) } };
 }
 

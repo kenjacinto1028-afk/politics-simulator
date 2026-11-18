@@ -3,6 +3,8 @@ import { GROUPS } from '../data/city-content';
 import { SYSTEMS } from '../data/systems';
 import { clamp } from './city';
 import { kindOf } from './offices';
+import { has, makeCharacter } from './people';
+import { parliamentShift } from './systems';
 import type { Rng } from './rng';
 import type { Country, GameState, GroupId, Nation, Player } from './types';
 
@@ -28,7 +30,7 @@ export function newNation(country: Country, rng: Rng): Nation {
     taxRate: 30, spending: 33,
     priorities: { defense: 15, welfare: 25, health: 20, education: 20, infrastructure: 20 },
     parliament: { name: PARLIAMENT_NAME[country.systemId] ?? 'Parliament', seats, yourParty: oneParty ? seats : Math.round(seats * (0.45 + rng() * 0.15)), goodwill: 55 },
-    laws: [], tradeDeals: [], war: null, lastAddressTurn: -99, legacy: 0,
+    laws: [], tradeDeals: [], alliances: [], lastSummitTurn: -99, war: null, lastAddressTurn: -99, legacy: 0,
   };
 }
 
@@ -114,7 +116,9 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
 
   if (n.war) {
     const enemy = countries[n.war.enemy];
-    const strength = country.economy.gdpBn / (country.economy.gdpBn + enemy.economy.gdpBn);
+    // Allies fight with you.
+    const ours = country.economy.gdpBn + n.alliances.reduce((a, id) => a + (countries[id]?.economy.gdpBn ?? 0) * 0.5, 0);
+    const strength = ours / (ours + enemy.economy.gdpBn);
     const score = n.war.score + (strength - 0.5) * 20 + (n.priorities.defense - 20) * 0.4 + (rng() - 0.5) * 12;
     const months = n.war.months + 1;
     p = { ...p, popularity: clamp(p.popularity + (months <= 2 ? 2 : -1.5), 0, 100) };
@@ -129,6 +133,14 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
     }
   }
 
+  // A hostile hawk may attack you, unless you have allies to deter them.
+  if (!n.war) {
+    const foe = Object.values(countries).find((o) => o.id !== p.countryId && has(o.leader, 'hawk') && (o.relations[p.countryId] ?? 0) <= -60);
+    if (foe && rng() < (n.alliances.length ? 0.01 : 0.03)) {
+      n = { ...n, war: { enemy: foe.id, months: 0, score: -5 }, tradeDeals: n.tradeDeals.filter((x) => x !== foe.id) };
+      lines.push(`${foe.leader.name} of ${foe.name} declares war on your country!`);
+    }
+  }
   const mood = nationalMood(country, n);
   const targets = nationGroupTargets(country, n);
   const groups = { ...p.groups };
@@ -137,7 +149,7 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
   // Without elections, power rests on the party or board: their backing fades unless tended.
   if (SYSTEMS[country.systemId].advancement !== 'election') p = { ...p, loyalty: clamp(p.loyalty - 0.6, 0, 100) };
   n = { ...n, parliament: { ...n.parliament, goodwill: clamp(approach(n.parliament.goodwill, 50 + (p.popularity - 50) * 0.3, 0.05), 0, 100) }, legacy: n.legacy + (p.popularity + country.stability) / 200 };
-  country = { ...country, leader: { name: p.name, party: 'Your party', approval: p.popularity } };
+  country = { ...country, leader: { ...country.leader, name: p.name, party: 'Your party', approval: p.popularity, faith: p.faith } };
   countries[p.countryId] = country;
   p = { ...p, nation: n };
   let game: GameState = { ...g, player: p, countries };
@@ -158,12 +170,24 @@ export function tickWorld(g: GameState, rng: Rng): GameState {
   for (const [id, c] of Object.entries(countries)) {
     if (id === playerCountry) continue;
     const relations = { ...c.relations };
-    for (const k of Object.keys(relations)) relations[k] = clamp(relations[k] + (rng() - 0.5) * 2 - relations[k] * 0.01, -100, 100);
+    // Personality and faith shape how each leader treats the world.
+    const mood = (has(c.leader, 'hawk') ? -0.25 : 0) + (has(c.leader, 'dove') ? 0.25 : 0);
+    for (const k of Object.keys(relations)) {
+      const o = countries[k];
+      const faithPull = o && o.faith === c.faith && c.faith !== 'secular' ? 0.1 : o && c.religiosity > 60 && o.faith !== c.faith ? -0.1 : 0;
+      relations[k] = clamp(relations[k] + (rng() - 0.5) * 2 - relations[k] * 0.01 + mood + faithPull, -100, 100);
+    }
+    // Hawks sometimes pick fights with countries they already dislike.
+    const foe = Object.keys(relations).find((k) => relations[k] < -40);
+    if (has(c.leader, 'hawk') && foe && countries[foe] && rng() < 0.01) {
+      relations[foe] = clamp(relations[foe] - 15, -100, 100);
+      lines.push(`${c.name} and ${countries[foe].name} clash at the border. ${c.leader.name} blames ${countries[foe].name}.`);
+    }
     let leader = c.leader;
     if (c.leader.approval < 35 && rng() < 0.03) {
-      leader = { name: `${SYSTEMS[c.systemId].advancement === 'election' ? 'President' : 'Leader'} ${pick(LEADER_LAST, rng)}`, party: 'New Movement', approval: 55 };
+      const ch = makeCharacter(c, rng, `${pick(LEADER_FIRST, rng)} ${pick(LEADER_LAST, rng)}`);
+      leader = { ...ch, party: 'New Movement', approval: 55 };
       lines.push(`${c.name}: ${c.leader.name} is out. ${leader.name} takes power.`);
-      void LEADER_FIRST;
     }
     countries[id] = { ...c, relations, leader };
   }
@@ -218,7 +242,9 @@ export function courtParliament(g: GameState, rng: Rng): GameState {
 export function stateVisit(g: GameState, other: string, rng: Rng): GameState {
   const p = g.player;
   if (!isLeader(p) || blocked(p) || !g.countries[other] || other === p.countryId) return g;
-  const gain = Math.round(8 + rng() * 6);
+  // Peacemakers welcome visits; hawks are cool to them.
+  const lead = g.countries[other].leader;
+  const gain = Math.round(8 + rng() * 6 + (has(lead, 'dove') ? 4 : 0) - (has(lead, 'hawk') ? 3 : 0) + (lead.faith === p.faith && p.faith !== 'secular' ? 2 : 0));
   const next = setRelation(g, p.countryId, other, gain);
   return log({ ...next, player: spendAction(p, p.nation!, { popularity: clamp(p.popularity + 1, 0, 100) }) }, `${p.name} makes a state visit to ${g.countries[other].name} (+${gain} relations).`);
 }
@@ -234,12 +260,17 @@ export function tradeDeal(g: GameState, other: string): GameState {
 export function sanction(g: GameState, other: string): GameState {
   const p = g.player;
   if (!isLeader(p) || blocked(p) || !g.countries[other] || other === p.countryId) return g;
-  const next = setRelation(g, p.countryId, other, -30);
+  // Hawks and vain leaders hit back with sanctions of their own.
+  const lead = g.countries[other].leader;
+  const retaliate = has(lead, 'hawk') || has(lead, 'vain');
+  const next = setRelation(g, p.countryId, other, retaliate ? -40 : -30);
   const tradeDeals = p.nation!.tradeDeals.filter((x) => x !== other);
+  const alliances = p.nation!.alliances.filter((x) => x !== other);
   const c = next.countries[p.countryId];
-  const countries = { ...next.countries, [p.countryId]: { ...c, stability: clamp(c.stability + 2, 0, 100) } };
-  const groups = { ...p.groups, business: clamp(p.groups.business - 2, 0, 100) };
-  return log({ ...next, countries, player: spendAction(p, { ...p.nation!, tradeDeals }, { groups }) }, `${p.name} slaps sanctions on ${g.countries[other].name}.`);
+  const countries = { ...next.countries, [p.countryId]: { ...c, stability: clamp(c.stability + (retaliate ? 0 : 2), 0, 100) } };
+  const groups = { ...p.groups, business: clamp(p.groups.business - (retaliate ? 5 : 2), 0, 100) };
+  return log({ ...next, countries, player: spendAction(p, { ...p.nation!, tradeDeals, alliances }, { groups }) },
+    `${p.name} slaps sanctions on ${g.countries[other].name}.${retaliate ? ` ${lead.name} hits back with sanctions of their own.` : ''}`);
 }
 
 export function declareWar(g: GameState, other: string): GameState {
@@ -264,12 +295,12 @@ export function seekPeace(g: GameState, rng: Rng): GameState {
   return log({ ...next, player: spendAction(p, { ...p.nation!, war: null }, { popularity: clamp(p.popularity - 3, 0, 100) }) }, `${p.name} signs a peace deal with ${enemy}.`);
 }
 
-export function forecastNationalLaw(p: Player, law: NationalLawDef) {
+export function forecastNationalLaw(p: Player, law: NationalLawDef, shift = 0) {
   const parl = p.nation!.parliament;
   const appeal = GROUP_IDS.reduce((a, k) => a + (law.groups[k] ?? 0) * GROUPS[k].weight, 0);
   const defect = Math.round(parl.yourParty * clamp((40 - p.loyalty) / 100, 0, 0.3));
   const oppYes = clamp((parl.goodwill + appeal * 3 - 55) / 70, 0, 0.8);
-  const yes = parl.yourParty - defect + Math.round((parl.seats - parl.yourParty) * oppYes);
+  const yes = clamp(parl.yourParty - defect + Math.round((parl.seats - parl.yourParty) * oppYes) + shift, 0, parl.seats);
   return { yes, needed: Math.floor(parl.seats / 2) + 1 };
 }
 
@@ -277,7 +308,7 @@ export function proposeNationalLaw(g: GameState, id: string, rng: Rng): GameStat
   const p = g.player;
   const law = nationalLaw(id);
   if (!isLeader(p) || blocked(p) || !law || p.nation!.laws.includes(id)) return g;
-  const { yes, needed } = forecastNationalLaw(p, law);
+  const { yes, needed } = forecastNationalLaw(p, law, parliamentShift(g));
   const seats = p.nation!.parliament.seats;
   const actual = clamp(yes + Math.round((rng() - 0.5) * seats * 0.06), 0, seats);
   if (actual < needed) return log({ ...g, player: spendAction(p, p.nation!, { popularity: clamp(p.popularity - 1, 0, 100) }) }, `${p.nation!.parliament.name} rejects ${law.name} (${actual}–${seats - actual}).`);
@@ -298,4 +329,51 @@ export function setNationalBudget(g: GameState, taxRate: number, spending: numbe
   const total = PRIORITIES.reduce((a, k) => a + Math.max(0, priorities[k]), 0) || 1;
   const norm = Object.fromEntries(PRIORITIES.map((k) => [k, Math.round((Math.max(0, priorities[k]) / total) * 100)])) as Nation['priorities'];
   return { ...g, player: { ...p, nation: { ...p.nation!, taxRate: clamp(Math.round(taxRate), 10, 55), spending: clamp(Math.round(spending), 10, 60), priorities: norm } } };
+}
+
+export const SUMMIT_COOLDOWN = 12;
+export const ALLIANCE_MIN_RELATION = 60;
+const addDebt = (c: Country, bn: number): Country => ({ ...c, economy: { ...c.economy, debtToGdp: clamp(c.economy.debtToGdp + (bn / c.economy.gdpBn) * 100, 0, 400) } });
+
+/** Invite the world's leaders. Everyone warms to you a little. Once a year. */
+export function canHostSummit(g: GameState) {
+  const p = g.player;
+  return isLeader(p) && g.turn - p.nation!.lastSummitTurn >= SUMMIT_COOLDOWN;
+}
+
+export function hostSummit(g: GameState): GameState {
+  const p = g.player;
+  if (!isLeader(p) || blocked(p) || !canHostSummit(g)) return g;
+  let next = g;
+  for (const id of Object.keys(g.countries)) if (id !== p.countryId) next = setRelation(next, p.countryId, id, has(g.countries[id].leader, 'dove') ? 6 : 3);
+  const countries = { ...next.countries, [p.countryId]: addDebt(next.countries[p.countryId], 5) };
+  return log({ ...next, countries, player: spendAction(p, { ...p.nation!, lastSummitTurn: g.turn }, { popularity: clamp(p.popularity + 2, 0, 100) }) },
+    `${p.name} hosts a world summit. Leaders from every continent attend ($5bn).`);
+}
+
+/** Send aid: wins friends abroad, costs money at home. */
+export function foreignAid(g: GameState, other: string): GameState {
+  const p = g.player;
+  if (!isLeader(p) || blocked(p) || !g.countries[other] || other === p.countryId) return g;
+  const next = setRelation(g, p.countryId, other, 12);
+  const countries = { ...next.countries, [p.countryId]: addDebt(next.countries[p.countryId], 10) };
+  const groups = { ...p.groups, students: clamp(p.groups.students + 2, 0, 100), workers: clamp(p.groups.workers - 1, 0, 100) };
+  return log({ ...next, countries, player: spendAction(p, p.nation!, { groups }) }, `${p.name} sends $10bn in aid to ${g.countries[other].name} (+12 relations).`);
+}
+
+export function allianceBlocker(g: GameState, other: string): string | null {
+  const n = g.player!.nation!;
+  if (n.alliances.includes(other)) return 'Already allies';
+  if (n.war?.enemy === other) return 'At war';
+  if (relationWith(g, other) < ALLIANCE_MIN_RELATION) return `Needs relations ${ALLIANCE_MIN_RELATION}+`;
+  if (has(g.countries[other].leader, 'cautious') && relationWith(g, other) < 75) return 'Cautious leader: needs 75+';
+  return null;
+}
+
+/** A defense pact: allies help you win wars and scare off attackers. */
+export function formAlliance(g: GameState, other: string): GameState {
+  const p = g.player;
+  if (!isLeader(p) || blocked(p) || !g.countries[other] || allianceBlocker(g, other)) return g;
+  const next = setRelation(g, p.countryId, other, 5);
+  return log({ ...next, player: spendAction(p, { ...p.nation!, alliances: [...p.nation!.alliances, other] }) }, `${p.name} signs a defense alliance with ${g.countries[other].name}.`);
 }
