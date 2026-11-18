@@ -10,3 +10,8 @@
 - 2026-11-18: Easier first race (~75% for active play) with monthly tips. Mayor overhaul: 4 voter groups, 7-seat council (lobby/deals, votes), 8 multi-month projects, 8 laws with trade-offs, run for higher office after 18 months. Engine by Opus, screens by Sonnet. 21 tests pass. Play link updated.
 - 2026-11-18: Fixed repeating events (better RNG seeding, events can't recur until 8 others happen, max one every 2 months; bills max one every 3 months). Term rules: run for higher office only in your final 6 months, instead of re-election; losing any race = out of office; term limits; comeback can target one rung above your best. Governor gameplay: a state with 5 cities and mayors, state budget, 60-seat legislature, 6 state laws, bills to sign/veto, 8 state crises, yearly State of the State. Saves migrate to v3. 29 tests.
 - 2026-11-18: Lawmaker gameplay for every legislative office (Legislator, Senator, State Legislator, councillors, Board Member): floor votes with party pressure, your own bills (co-sponsors → committee → floor), 5 committees with perks, influence, cross-party ties, district funding, 6 lawmaker events. Funds tracker: campaign funds + city/state treasury (with monthly change) or district funding in the header; money shown before/after on events, bills, projects and grants. Saves v4. 33 tests.
+
+## Cabinet + head of state + bug hunts
+- Cabinet (ministry, initiatives, leader's trust, asks, reshuffles) and head of state (national budget, parliament, laws, diplomacy, war, removal, legacy, retirement) playable in all 8 systems.
+- Robot career test across all systems; browser click-through of 41 saves. Fixed a game-freezing leftover-prompt bug and city panels showing in national jobs.
+- Play link v5. 58 tests.

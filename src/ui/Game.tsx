@@ -173,9 +173,9 @@ export function Game() {
         </div>
       )}
 
-      {!governor && !lawmaker && p.office && city && <Council />}
-      {!governor && !lawmaker && p.office && city && <Projects />}
-      {!governor && !lawmaker && p.office && city && <Laws />}
+      {kind === 'local' && city && <Council />}
+      {kind === 'local' && city && <Projects />}
+      {kind === 'local' && city && <Laws />}
       {p.office && <HigherOffice />}
 
       <div className="panel">
@@ -211,7 +211,7 @@ export function Game() {
             <p>{p.pendingEvent.text}</p>
             {p.pendingEvent.choices.some((ch) => ch.effects.treasury || ch.effects.funds) && (
               <p className="money-line">
-                {[treasuryOf(p) && `${treasuryOf(p)!.label}: ${k(treasuryOf(p)!.value)}`, `Campaign funds: ${k(p.funds)}`].filter(Boolean).join(' · ')}
+                {[treasuryOf(p) && `${treasuryOf(p)!.label}: ${k(treasuryOf(p)!.value)}`, (minister || leader) && `National debt: ${home.economy.debtToGdp.toFixed(1)}% of GDP`, `Campaign funds: ${k(p.funds)}`].filter(Boolean).join(' · ')}
               </p>
             )}
             <div className="actions">
