@@ -8,6 +8,9 @@ import { Stat } from './Stat';
 import { parliamentShift } from '../sim/systems';
 import { TRAITS } from '../data/people';
 import { countryLabel } from '../data/local-names';
+import { armsBlocker, armsCost, inviteBlocker, nuclearShield, TIERS, tierOf } from '../sim/geo';
+import { BLOCS, RESOURCES } from '../data/geo';
+import { AllyCallCard, AlliesCard, BlocActions } from './WorldPower';
 
 const f1 = (n: number) => n.toFixed(1);
 const n0 = (n: number) => Math.round(n).toString();
@@ -144,7 +147,7 @@ function NationalLaws() {
 }
 
 export function Diplomacy() {
-  const { game, stateVisit, tradeDeal, sanction, declareWar, seekPeace, hostSummit, foreignAid, formAlliance } = useGame();
+  const { game, stateVisit, tradeDeal, sanction, declareWar, seekPeace, hostSummit, foreignAid, formAlliance, armsDeal, inviteToBloc } = useGame();
   const blocked = useBlocked();
   const p = game.player!;
   const n = p.nation!;
@@ -159,6 +162,8 @@ export function Diplomacy() {
           <button className="small" disabled={blocked} onClick={seekPeace}>Seek peace ({Math.round(peaceChance(game) * 100)}% chance)</button>
         </div>
       )}
+      <BlocActions />
+      <AlliesCard />
       <div className="row">
         <button className="action" disabled={blocked || !canHostSummit(game)} onClick={hostSummit}>Host summit<small>{canHostSummit(game) ? '$5bn · everyone warms to you' : `Once every ${SUMMIT_COOLDOWN} months (${Math.max(1, SUMMIT_COOLDOWN - (game.turn - n.lastSummitTurn))} to go)`}</small></button>
       </div>
@@ -170,10 +175,14 @@ export function Diplomacy() {
               const rel = relationWith(game, c.id);
               const dealt = n.tradeDeals.includes(c.id);
               const canTrade = !dealt && rel >= TRADE_MIN_RELATION;
-              const canWar = !n.war && rel <= WAR_MAX_RELATION;
+              const shield = nuclearShield(game, c.id);
+              const canWar = !n.war && rel <= WAR_MAX_RELATION && !shield;
+              const armsWhy = armsBlocker(game, c.id);
+              const inviteWhy = inviteBlocker(game, c.id);
+              const showInvite = inviteWhy !== 'Only the bloc leader can invite' && inviteWhy !== 'You are not in a bloc' && inviteWhy !== 'Already a member';
               return (
                 <tr key={c.id}>
-                  <td>{countryLabel(c)}{dealt && <span className="pos small-text"> trade deal</span>}{n.alliances.includes(c.id) && <span className="badge good">Ally</span>}</td>
+                  <td>{countryLabel(c)} <span className="badge">{TIERS[tierOf(c)].name}</span><br /><span className="muted small-text">{BLOCS[c.bloc].name} · army {Math.round(c.military)}{c.nuclear ? ' · nuclear' : ''} · exports {RESOURCES[c.resource].name.toLowerCase()}</span>{dealt && <span className="pos small-text"> trade deal</span>}{n.alliances.includes(c.id) && <span className="badge good">Ally</span>}</td>
                   <td className="small-text">{c.leader.name}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}</span></td>
                   <td className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</td>
                   <td>
@@ -182,8 +191,10 @@ export function Diplomacy() {
                       <button className="small" disabled={blocked || !canTrade} title={dealt ? 'Already signed' : `Needs relations of ${TRADE_MIN_RELATION}+`} onClick={() => tradeDeal(c.id)}>Trade deal</button>
                       <button className="small" disabled={blocked} title="$10bn, +12 relations" onClick={() => foreignAid(c.id)}>Foreign aid</button>
                       <button className="small" disabled={blocked || !!allianceBlocker(game, c.id)} title={allianceBlocker(game, c.id) ?? 'Defense pact'} onClick={() => formAlliance(c.id)}>Alliance{allianceBlocker(game, c.id) && !n.alliances.includes(c.id) ? ` (${allianceBlocker(game, c.id)})` : ''}</button>
+                      {!armsWhy && <button className="small" disabled={blocked} title={`$${armsCost(game.countries[p.countryId])}bn, stronger army`} onClick={() => armsDeal(c.id)}>Buy arms</button>}
+                      {showInvite && <button className="small" disabled={blocked || !!inviteWhy} title={inviteWhy ?? 'Bring them into your bloc'} onClick={() => inviteToBloc(c.id)}>Invite to bloc{inviteWhy ? ` (${inviteWhy})` : ''}</button>}
                       <button className="small secondary" disabled={blocked} onClick={() => sanction(c.id)}>Sanction</button>
-                      <button className="small secondary" disabled={blocked || !canWar} title={n.war ? 'You are already at war' : `Needs relations of ${WAR_MAX_RELATION} or worse`} onClick={() => declareWar(c.id)}>Declare war</button>
+                      <button className="small secondary" disabled={blocked || !canWar} title={n.war ? 'You are already at war' : shield ?? `Needs relations of ${WAR_MAX_RELATION} or worse`} onClick={() => declareWar(c.id)}>Declare war{shield ? ' (nuclear deterrence)' : ''}</button>
                     </div>
                   </td>
                 </tr>
@@ -192,7 +203,7 @@ export function Diplomacy() {
           </tbody>
         </table>
       </div>
-      <p className="muted small-text">Trade deals need relations of {TRADE_MIN_RELATION}+. War needs relations of {WAR_MAX_RELATION} or worse. Sanctions hurt relations and end trade deals.</p>
+      <p className="muted small-text">Trade deals need relations of {TRADE_MIN_RELATION}+. War needs relations of {WAR_MAX_RELATION} or worse. Sanctions hurt relations and end trade deals. Trade deals bring in the partner's exports: oil cuts inflation, food adds stability, technology and minerals add growth, factories add jobs. Big powers win wars more easily, and nuclear powers can't be invaded.</p>
     </div>
   );
 }
@@ -203,6 +214,7 @@ export function Nation({ part = 'all' }: { part?: 'all' | 'job' } = {}) {
   if (!n) return null;
   return (
     <>
+      <AllyCallCard />
       <Economy />
       <BudgetPanel key={game.turn} nation={n} />
       <Parliament />

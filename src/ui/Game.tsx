@@ -1,3 +1,6 @@
+import { WorldPower } from './WorldPower';
+import { TIERS, tierOf } from '../sim/geo';
+import { BLOCS } from '../data/geo';
 import { useEffect, useState } from 'react';
 import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
@@ -218,16 +221,18 @@ export function Game() {
         <ul className="news">{game.log.slice(0, 12).map((l, i) => <li key={i}>{l}</li>)}</ul>
       </div>}
 
+      {on('world') && <WorldPower />}
+
       {on('world') && <div className="panel">
         <h3>World {!phone && <button className="small secondary" onClick={() => setShowWorld(!showWorld)}>{showWorld ? 'Hide' : 'Show'}</button>}</h3>
         {(showWorld || phone) && (
           <div className="scroll">
             <table>
-              <thead><tr><th>Country</th><th>System</th><th>Leader</th><th>Approval</th><th>GDP $bn</th><th>Growth</th><th>Unemp.</th></tr></thead>
+              <thead><tr><th>Country</th><th>Power</th><th>Army</th><th>Bloc</th><th>System</th><th>Leader</th><th>Approval</th><th>GDP $bn</th><th>Growth</th><th>Unemp.</th></tr></thead>
               <tbody>
                 {Object.values(game.countries).map((x) => (
                   <tr key={x.id} className={x.id === p.countryId ? 'home' : ''}>
-                    <td>{countryLabel(x)}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}</td><td>{fmt(x.leader.approval, 0)}%</td>
+                    <td>{countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}</td><td>{fmt(x.leader.approval, 0)}%</td>
                     <td>{fmt(x.economy.gdpBn, 0)}</td><td>{fmt(x.economy.growth)}%</td><td>{fmt(x.economy.unemployment)}%</td>
                   </tr>
                 ))}

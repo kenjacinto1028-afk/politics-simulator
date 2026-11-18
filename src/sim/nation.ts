@@ -5,6 +5,8 @@ import { clamp } from './city';
 import { kindOf } from './offices';
 import { has, makeCharacter } from './people';
 import { parliamentShift } from './systems';
+import { nuclearShield, protector, tickAllies, warPower } from './geo';
+import type { ResourceId } from '../data/geo';
 import type { Rng } from './rng';
 import type { Country, GameState, GroupId, Nation, Player } from './types';
 
@@ -29,7 +31,7 @@ export function newNation(country: Country, rng: Rng): Nation {
     taxRate: 30, spending: 33,
     priorities: { defense: 15, welfare: 25, health: 20, education: 20, infrastructure: 20 },
     parliament: { name: PARLIAMENT_NAME[country.systemId] ?? 'Parliament', seats, yourParty: oneParty ? seats : Math.round(seats * (0.45 + rng() * 0.15)), goodwill: 55 },
-    laws: [], tradeDeals: [], alliances: [], lastSummitTurn: -99, war: null, lastAddressTurn: -99, legacy: 0,
+    laws: [], tradeDeals: [], alliances: [], lastSummitTurn: -99, war: null, lastAddressTurn: -99, legacy: 0, favors: {}, asked: {}, allyCall: null,
   };
 }
 
@@ -74,19 +76,26 @@ export function nationGroupTargets(c: Country, n: Nation): Record<GroupId, numbe
 }
 
 /** Your country's economy under your policies. Replaces the generic drift for the nation you lead. */
-export function tickNationalEconomy(c: Country, n: Nation, popularity: number, rng: Rng): Country {
+/** What your trade partners' exports do for you. */
+export function tradeBonus(res: ResourceId[]) {
+  const n = (r: ResourceId) => Math.min(2, res.filter((x) => x === r).length);
+  return { growth: n('tech') * 0.15 + n('minerals') * 0.08, inflation: -n('oil') * 0.4, unemployment: -n('industry') * 0.3, stability: n('food') * 2 };
+}
+
+export function tickNationalEconomy(c: Country, n: Nation, popularity: number, rng: Rng, res: ResourceId[] = []): Country {
+  const tb = tradeBonus(res);
   const lt = lawTargets(n);
   const pr = n.priorities;
   const e = c.economy;
   const war = n.war ? 1 : 0;
   const growthT = 2.2 + (30 - n.taxRate) * 0.06 + (pr.infrastructure - 20) * 0.03 + (pr.education - 20) * 0.02
-    + n.tradeDeals.length * 0.15 - Math.max(0, e.debtToGdp - 100) * 0.01 - war + lt.growth;
+    + n.tradeDeals.length * 0.15 - Math.max(0, e.debtToGdp - 100) * 0.01 - war + lt.growth + tb.growth;
   const growth = clamp(approach(e.growth, growthT, 0.1) + (rng() - 0.5) * 0.3, -8, 12);
   const def = deficit(n) + war * 2;
-  const inflation = clamp(approach(e.inflation, 2 + Math.max(0, def) * 0.4 + (growth - 2) * 0.3 + lt.inflation, 0.1) + (rng() - 0.5) * 0.2, -2, 60);
-  const unemployment = clamp(approach(e.unemployment, 6 - (growth - 2) * 0.6 - (pr.welfare - 20) * 0.02 + lt.unemployment, 0.08), 1, 40);
+  const inflation = clamp(approach(e.inflation, 2 + Math.max(0, def) * 0.4 + (growth - 2) * 0.3 + lt.inflation + tb.inflation, 0.1) + (rng() - 0.5) * 0.2, -2, 60);
+  const unemployment = clamp(approach(e.unemployment, 6 - (growth - 2) * 0.6 - (pr.welfare - 20) * 0.02 + lt.unemployment + tb.unemployment, 0.08), 1, 40);
   const debtToGdp = clamp(e.debtToGdp + def / 12 - growth / 12 * (e.debtToGdp / 100), 0, 400);
-  const stability = clamp(approach(c.stability, 50 + (popularity - 50) * 0.4 - (unemployment - 6) * 2 - (inflation - 3) * 1.5 + (pr.defense - 20) * 0.2 + lt.stability, 0.08), 0, 100);
+  const stability = clamp(approach(c.stability, 50 + (popularity - 50) * 0.4 - (unemployment - 6) * 2 - (inflation - 3) * 1.5 + (pr.defense - 20) * 0.2 + lt.stability + tb.stability, 0.08), 0, 100);
   return { ...c, stability, economy: { ...e, growth, inflation, unemployment, debtToGdp, gdpBn: e.gdpBn * (1 + growth / 1200) } };
 }
 
@@ -110,14 +119,16 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
   let p = g.player!;
   let n = p.nation!;
   const lines: string[] = [];
-  let country = tickNationalEconomy(g.countries[p.countryId], n, p.popularity, rng);
+  let country = tickNationalEconomy(g.countries[p.countryId], n, p.popularity, rng, n.tradeDeals.map((id) => g.countries[id]?.resource).filter((r): r is ResourceId => !!r));
   const countries = { ...g.countries };
 
   if (n.war) {
     const enemy = countries[n.war.enemy];
-    // Allies fight with you.
-    const ours = country.economy.gdpBn + n.alliances.reduce((a, id) => a + (countries[id]?.economy.gdpBn ?? 0) * 0.5, 0);
-    const strength = ours / (ours + enemy.economy.gdpBn);
+    // Armies and economies decide wars. Allies and your bloc's leader fight with you.
+    const helper = (id: string | null, not: string) => (id && id !== not && countries[id] ? warPower(countries[id]) * 0.4 : 0);
+    const ours = warPower(country) + n.alliances.reduce((a, id) => a + (countries[id] && id !== enemy.id ? warPower(countries[id]) * 0.5 : 0), 0) + helper(protector(g, p.countryId), enemy.id);
+    const theirs = warPower(enemy) + helper(protector(g, enemy.id), p.countryId);
+    const strength = ours / (ours + theirs);
     const score = n.war.score + (strength - 0.5) * 20 + (n.priorities.defense - 20) * 0.4 + (rng() - 0.5) * 12;
     const months = n.war.months + 1;
     p = { ...p, popularity: clamp(p.popularity + (months <= 2 ? 2 : -1.5), 0, 100) };
@@ -135,7 +146,7 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
   // A hostile hawk may attack you, unless you have allies to deter them.
   if (!n.war) {
     const foe = Object.values(countries).find((o) => o.id !== p.countryId && has(o.leader, 'hawk') && (o.relations[p.countryId] ?? 0) <= -60);
-    if (foe && rng() < (n.alliances.length ? 0.01 : 0.03)) {
+    if (foe && !nuclearShield(g, p.countryId) && rng() < (n.alliances.length || protector(g, p.countryId) ? 0.01 : 0.03)) {
       n = { ...n, war: { enemy: foe.id, months: 0, score: -5 }, tradeDeals: n.tradeDeals.filter((x) => x !== foe.id) };
       lines.push(`${foe.leader.name} of ${foe.name} declares war on your country!`);
     }
@@ -153,6 +164,7 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
   p = { ...p, nation: n };
   let game: GameState = { ...g, player: p, countries };
 
+  game = tickAllies(game, rng, lines);
   const removal = removalRisk(game);
   if (removal.risk > 0 && rng() < removal.risk) {
     game = { ...game, player: { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, termsInOffice: 0, retired: true } };
@@ -274,7 +286,7 @@ export function sanction(g: GameState, other: string): GameState {
 
 export function declareWar(g: GameState, other: string): GameState {
   const p = g.player;
-  if (!isLeader(p) || blocked(p) || p.nation!.war || !g.countries[other] || relationWith(g, other) > WAR_MAX_RELATION) return g;
+  if (!isLeader(p) || blocked(p) || p.nation!.war || !g.countries[other] || relationWith(g, other) > WAR_MAX_RELATION || nuclearShield(g, other)) return g;
   const next = setRelation(g, p.countryId, other, -100);
   return log({ ...next, player: spendAction(p, { ...p.nation!, war: { enemy: other, months: 0, score: 0 }, tradeDeals: p.nation!.tradeDeals.filter((x) => x !== other) }) },
     `${p.name} declares war on ${g.countries[other].name}.`);

@@ -21,3 +21,4 @@
 - Politicians at every level with personalities, endorsements, joint deals, feuds; leader personalities shape cabinet life and world diplomacy; faith and faith leaders; summits, aid, alliances; 102 new events.
 - 73 tests; robot careers in all 8 systems; browser check of 43 saves. Play link v7.
 - 2026-11-18: Local names: cities, provinces/states, politicians, rivals and parties now come from each country (PH: Cebu City, Pampanga, Carmela Cruz...). Fantasy countries get invented local names. 83 tests pass.
+- 2026-11-18: Great powers and geopolitics: superpowers/great/regional/minor tiers, blocs, armies, nuclear deterrence, proxy civil wars, trade exports, allies who send aid or troops and call on you. 94 tests pass.

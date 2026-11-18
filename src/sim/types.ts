@@ -1,3 +1,4 @@
+import type { BlocId, RegionId, ResourceId } from '../data/geo';
 // Core domain types. Player nation is simulated in detail; others at a high level.
 
 export type SystemId =
@@ -51,6 +52,36 @@ export interface Country {
   tourism: number;         // 0..100 index
   culture: number;         // 0..100 soft-power index
   relations: Record<string, number>; // countryId -> -100..100
+  /** World power: region, bloc, armed strength 0..100, nuclear arms, main export. */
+  region: RegionId;
+  bloc: BlocId;
+  military: number;
+  nuclear: boolean;
+  resource: ResourceId;
+}
+
+/** An ally's request for help. Unanswered calls count as a refusal. */
+export interface AllyCall {
+  from: string;
+  kind: 'aid' | 'troops';
+  reason: string;
+  /** Months left to answer. */
+  monthsLeft: number;
+  /** For troops: the civil war they are fighting in, if any. */
+  conflict?: string;
+}
+
+/** A civil war where outside powers back opposite sides. */
+export interface Conflict {
+  country: string;
+  /** Who arms the government and who arms the rebels. */
+  govBacker: string | null;
+  rebelBacker: string | null;
+  months: number;
+  /** >0 the government is winning, <0 the rebels. */
+  score: number;
+  /** The side your country backs, if any. */
+  playerSide?: 'gov' | 'rebel';
 }
 
 export interface Player {
@@ -188,6 +219,12 @@ export interface Nation {
   lastAddressTurn: number;
   /** Builds up while you lead; shown when your career ends. */
   legacy: number;
+  /** Favors between you and each ally: >0 they owe you, <0 you owe them. */
+  favors?: Record<string, number>;
+  /** Last turn you asked each ally for help. */
+  asked?: Record<string, number>;
+  /** An ally asking you for help right now. */
+  allyCall?: AllyCall | null;
 }
 
 export interface Region {
@@ -301,5 +338,6 @@ export interface GameState {
   month: number;       // 1..12
   player: Player | null;
   countries: Record<string, Country>;
+  conflicts: Conflict[];
   log: string[];
 }

@@ -1,6 +1,7 @@
 import type { Country, SystemId } from '../sim/types';
 import { COUNTRY_FAITH } from './people';
 import { seedLeaderTraits } from '../sim/people';
+import { BLOCS, GEO, isRival } from './geo';
 
 // Seed data: approximate, rounded figures. Leaders of real countries are
 // fictional so the game never depicts real people.
@@ -83,6 +84,7 @@ function toCountry(r: Row): Omit<Country, 'relations'> {
     leader: { name: leader, party, approval, ...seedLeaderTraits(id), faith: COUNTRY_FAITH[id][0] },
     faith: COUNTRY_FAITH[id][0], religiosity: COUNTRY_FAITH[id][1],
     economy: { gdpBn, growth, unemployment, inflation, debtToGdp }, stability, tourism, culture,
+    ...geoOf(id),
   };
 }
 
@@ -91,8 +93,24 @@ export function seedCountries(size: WorldSize = 25): Record<string, Country> {
   const out: Record<string, Country> = {};
   for (const c of picked) {
     const relations: Record<string, number> = {};
-    for (const o of picked) if (o.id !== c.id) relations[o.id] = 0;
+    for (const o of picked) if (o.id !== c.id) relations[o.id] = startingRelation(c, o);
     out[c.id] = { ...c, relations };
   }
   return out;
+}
+
+/** Geography and power for a country id. */
+export function geoOf(id: string): Pick<Country, 'region' | 'bloc' | 'military' | 'nuclear' | 'resource'> {
+  const [region, bloc, military, nuclear, resource] = GEO[id] ?? ['reaches', 'none', 20, 0, 'food'];
+  return { region, bloc, military, nuclear: nuclear === 1, resource };
+}
+
+/** Allies start warm, rivals cold, and rival blocs wary. */
+export function startingRelation(a: Pick<Country, 'id' | 'bloc' | 'region'>, b: Pick<Country, 'id' | 'bloc' | 'region'>): number {
+  let r = 0;
+  if (a.bloc !== 'none' && a.bloc === b.bloc) r += 30;
+  if (a.bloc !== 'none' && BLOCS[a.bloc].rival === b.bloc) r -= 15;
+  if (a.region === b.region) r += 5;
+  if (isRival(a.id, b.id)) r -= 45;
+  return r;
 }

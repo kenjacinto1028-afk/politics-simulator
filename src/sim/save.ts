@@ -9,10 +9,10 @@ import { clearOldJobs } from './career';
 import { newNation } from './nation';
 import { newContacts } from './people';
 import { newSystemState } from './systems';
-import { seedCountries } from '../data/countries';
+import { geoOf, seedCountries, startingRelation } from '../data/countries';
 import { SYSTEMS } from '../data/systems';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 export const SLOTS = ['autosave', 'slot1', 'slot2', 'slot3'] as const;
 export type SlotId = (typeof SLOTS)[number];
 
@@ -42,7 +42,18 @@ export function deserialize(text: string): GameState {
   if (file.version < 4) out = migrateV3(out);
   if (file.version < 5) out = migrateV4(out);
   if (file.version < 6) out = migrateV5(out);
+  if (file.version < 7) out = migrateV6(out);
   return out;
+}
+
+/** v6 saves predate world power: blocs, armies, exports and proxy wars. Relations keep their history. */
+function migrateV6(g: GameState): GameState {
+  const withGeo = Object.fromEntries(Object.entries(g.countries).map(([id, c]) => [id, { ...geoOf(id), ...c }]));
+  // Old relations keep their history, plus the starting warmth or chill between blocs and rivals.
+  const countries = Object.fromEntries(Object.entries(withGeo).map(([id, c]) => [id, {
+    ...c, relations: Object.fromEntries(Object.entries(c.relations).map(([o, v]) => [o, withGeo[o] ? Math.max(-100, Math.min(100, v + startingRelation(c, withGeo[o]))) : v])),
+  }]));
+  return { ...g, countries, conflicts: g.conflicts ?? [] };
 }
 
 /** v5 saves predate leader personalities, faith, politicians and system rules. */

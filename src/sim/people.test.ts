@@ -4,6 +4,7 @@ import { resolveEvent, startCareer } from './career';
 import { askEndorsement, endorseBlocker, faithOutreach, feud, jointDeal, meetContact, visibleContacts } from './people';
 import { callReferendum, choosePatron, executiveOrder, EXEC_ORDER_COST, patronBlocker, tickSystem } from './systems';
 import { MORE_EVENTS } from '../data/more-events';
+import { GEO_EVENTS } from '../data/geo-events';
 import { SYSTEMS } from '../data/systems';
 import type { GameState } from './types';
 
@@ -115,7 +116,7 @@ describe('system rules', () => {
 describe('event content', () => {
   it('every new event is well formed', () => {
     const ids = new Set<string>();
-    for (const e of MORE_EVENTS) {
+    for (const e of [...MORE_EVENTS, ...GEO_EVENTS]) {
       expect(ids.has(e.id), e.id).toBe(false);
       ids.add(e.id);
       expect(e.choices.length, e.id).toBeGreaterThanOrEqual(2);
