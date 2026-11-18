@@ -2,6 +2,8 @@ import { CABINET_ASKS, PORTFOLIOS, type CabinetAskDef, type InitiativeDef, type 
 import { GROUPS } from '../data/city-content';
 import { clamp } from './city';
 import { kindOf } from './offices';
+import { has } from './people';
+import { FOCUSES } from '../data/people';
 import type { Rng } from './rng';
 import type { Country, GameState, GroupId, Ministry, Player } from './types';
 
@@ -58,13 +60,15 @@ export function tickMinistry(g: GameState, rng: Rng): { game: GameState; lines: 
     const groups = { ...p.groups };
     for (const k of GROUP_IDS) groups[k] = clamp(groups[k] + (def.groups[k] ?? 0), 0, 100);
     p = { ...p, groups, popularity: clamp(p.popularity + 3, 0, 100) };
-    m = { ...m, done: [...m.done, r.id], performance: clamp(m.performance + 10, 0, 100), boss: clamp(m.boss + 3, 0, 100) };
+    // Technocrats love results; leaders love results in the area they care about.
+    const bonus = (has(country.leader, 'technocrat') ? 4 : 0) + (m.portfolio && FOCUSES[country.leader.focus]?.portfolio === m.portfolio ? 5 : 0);
+    m = { ...m, done: [...m.done, r.id], performance: clamp(m.performance + 10, 0, 100), boss: clamp(m.boss + 3 + bonus, 0, 100) };
     lines.push(`${def.name} is complete. ${p.name} takes a victory lap.`);
   }
   m = { ...m, running };
 
   // Performance fades without results; the leader warms to results and cools if you outshine them.
-  const outshine = p.popularity > country.leader.approval + 15 ? 1.5 : 0;
+  const outshine = p.popularity > country.leader.approval + 15 ? (has(country.leader, 'vain') ? 3 : 1.5) : 0;
   m = {
     ...m,
     performance: clamp(m.performance + (45 - m.performance) * 0.04 + (running.length ? 0.5 : 0), 0, 100),
@@ -72,7 +76,8 @@ export function tickMinistry(g: GameState, rng: Rng): { game: GameState; lines: 
   };
 
   // The leader sometimes asks for public backing.
-  if (!m.pendingAsk && m.askCooldown <= 0 && rng() < 0.4) {
+  const askChance = has(country.leader, 'populist') ? 0.6 : has(country.leader, 'cautious') ? 0.25 : 0.4;
+  if (!m.pendingAsk && m.askCooldown <= 0 && rng() < askChance) {
     m = { ...m, pendingAsk: pick(CABINET_ASKS, rng).id, askCooldown: 3 };
   } else {
     m = { ...m, askCooldown: m.askCooldown - 1 };
@@ -156,7 +161,9 @@ export function answerAsk(g: GameState, back: boolean): GameState {
   const ask = cabinetAsk(p.ministry!.pendingAsk)!;
   const groups = { ...p.groups };
   for (const k of GROUP_IDS) groups[k] = clamp(groups[k] + (ask.groups[k] ?? 0) * (back ? 1 : -0.5), 0, 100);
-  const ministry = { ...p.ministry!, pendingAsk: null, boss: clamp(p.ministry!.boss + (back ? 8 : -12), 0, 100) };
+  const leader = g.countries[p.countryId].leader;
+  const delta = back ? (has(leader, 'generous') ? 12 : 8) : (has(leader, 'vain') ? -18 : -12);
+  const ministry = { ...p.ministry!, pendingAsk: null, boss: clamp(p.ministry!.boss + delta, 0, 100) };
   const popularity = clamp(p.popularity + (back ? 0 : 2), 0, 100);
   return log({ ...g, player: { ...p, groups, ministry, popularity } }, `${p.name} ${back ? 'publicly backs' : 'refuses to back'} the leader on ${ask.title}.`);
 }

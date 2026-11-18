@@ -7,9 +7,12 @@ import { kindOf } from './offices';
 import { newMinistry } from './cabinet';
 import { clearOldJobs } from './career';
 import { newNation } from './nation';
+import { newContacts } from './people';
+import { newSystemState } from './systems';
+import { seedCountries } from '../data/countries';
 import { SYSTEMS } from '../data/systems';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 export const SLOTS = ['autosave', 'slot1', 'slot2', 'slot3'] as const;
 export type SlotId = (typeof SLOTS)[number];
 
@@ -38,7 +41,24 @@ export function deserialize(text: string): GameState {
   if (file.version < 3) out = migrateV2(out);
   if (file.version < 4) out = migrateV3(out);
   if (file.version < 5) out = migrateV4(out);
+  if (file.version < 6) out = migrateV5(out);
   return out;
+}
+
+/** v5 saves predate leader personalities, faith, politicians and system rules. */
+function migrateV5(g: GameState): GameState {
+  const fresh = seedCountries(50);
+  const countries = Object.fromEntries(Object.entries(g.countries).map(([id, c]) => {
+    const seed = fresh[id];
+    const leader = { ...c.leader, traits: c.leader.traits ?? seed?.leader.traits ?? ['cautious', 'charismatic'], focus: c.leader.focus ?? seed?.leader.focus ?? 'economy', faith: c.leader.faith ?? seed?.faith ?? 'secular' };
+    return [id, { ...c, leader, faith: c.faith ?? seed?.faith ?? 'secular', religiosity: c.religiosity ?? seed?.religiosity ?? 30 }];
+  }));
+  const next = { ...g, countries };
+  const p = g.player;
+  if (!p) return next;
+  const country = countries[p.countryId];
+  const faith = p.faith ?? country.faith;
+  return { ...next, player: { ...p, faith, clergy: p.clergy ?? 50, contacts: p.contacts ?? newContacts(country, faith, makeRng(g.seed + 4)), sys: p.sys ?? newSystemState() } };
 }
 
 /** v4 saves predate cabinet and head-of-state gameplay. */

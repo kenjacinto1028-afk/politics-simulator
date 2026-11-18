@@ -3,6 +3,8 @@ import { GROUPS } from '../data/city-content';
 import { SYSTEMS } from '../data/systems';
 import { clamp } from './city';
 import { kindOf } from './offices';
+import { has, makeCharacter } from './people';
+import { parliamentShift } from './systems';
 import type { Rng } from './rng';
 import type { Country, GameState, GroupId, Nation, Player } from './types';
 
@@ -137,7 +139,7 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
   // Without elections, power rests on the party or board: their backing fades unless tended.
   if (SYSTEMS[country.systemId].advancement !== 'election') p = { ...p, loyalty: clamp(p.loyalty - 0.6, 0, 100) };
   n = { ...n, parliament: { ...n.parliament, goodwill: clamp(approach(n.parliament.goodwill, 50 + (p.popularity - 50) * 0.3, 0.05), 0, 100) }, legacy: n.legacy + (p.popularity + country.stability) / 200 };
-  country = { ...country, leader: { name: p.name, party: 'Your party', approval: p.popularity } };
+  country = { ...country, leader: { ...country.leader, name: p.name, party: 'Your party', approval: p.popularity, faith: p.faith } };
   countries[p.countryId] = country;
   p = { ...p, nation: n };
   let game: GameState = { ...g, player: p, countries };
@@ -158,12 +160,24 @@ export function tickWorld(g: GameState, rng: Rng): GameState {
   for (const [id, c] of Object.entries(countries)) {
     if (id === playerCountry) continue;
     const relations = { ...c.relations };
-    for (const k of Object.keys(relations)) relations[k] = clamp(relations[k] + (rng() - 0.5) * 2 - relations[k] * 0.01, -100, 100);
+    // Personality and faith shape how each leader treats the world.
+    const mood = (has(c.leader, 'hawk') ? -0.25 : 0) + (has(c.leader, 'dove') ? 0.25 : 0);
+    for (const k of Object.keys(relations)) {
+      const o = countries[k];
+      const faithPull = o && o.faith === c.faith && c.faith !== 'secular' ? 0.1 : o && c.religiosity > 60 && o.faith !== c.faith ? -0.1 : 0;
+      relations[k] = clamp(relations[k] + (rng() - 0.5) * 2 - relations[k] * 0.01 + mood + faithPull, -100, 100);
+    }
+    // Hawks sometimes pick fights with countries they already dislike.
+    const foe = Object.keys(relations).find((k) => relations[k] < -40);
+    if (has(c.leader, 'hawk') && foe && countries[foe] && rng() < 0.01) {
+      relations[foe] = clamp(relations[foe] - 15, -100, 100);
+      lines.push(`${c.name} and ${countries[foe].name} clash at the border. ${c.leader.name} blames ${countries[foe].name}.`);
+    }
     let leader = c.leader;
     if (c.leader.approval < 35 && rng() < 0.03) {
-      leader = { name: `${SYSTEMS[c.systemId].advancement === 'election' ? 'President' : 'Leader'} ${pick(LEADER_LAST, rng)}`, party: 'New Movement', approval: 55 };
+      const ch = makeCharacter(c, rng, `${pick(LEADER_FIRST, rng)} ${pick(LEADER_LAST, rng)}`);
+      leader = { ...ch, party: 'New Movement', approval: 55 };
       lines.push(`${c.name}: ${c.leader.name} is out. ${leader.name} takes power.`);
-      void LEADER_FIRST;
     }
     countries[id] = { ...c, relations, leader };
   }
@@ -264,12 +278,12 @@ export function seekPeace(g: GameState, rng: Rng): GameState {
   return log({ ...next, player: spendAction(p, { ...p.nation!, war: null }, { popularity: clamp(p.popularity - 3, 0, 100) }) }, `${p.name} signs a peace deal with ${enemy}.`);
 }
 
-export function forecastNationalLaw(p: Player, law: NationalLawDef) {
+export function forecastNationalLaw(p: Player, law: NationalLawDef, shift = 0) {
   const parl = p.nation!.parliament;
   const appeal = GROUP_IDS.reduce((a, k) => a + (law.groups[k] ?? 0) * GROUPS[k].weight, 0);
   const defect = Math.round(parl.yourParty * clamp((40 - p.loyalty) / 100, 0, 0.3));
   const oppYes = clamp((parl.goodwill + appeal * 3 - 55) / 70, 0, 0.8);
-  const yes = parl.yourParty - defect + Math.round((parl.seats - parl.yourParty) * oppYes);
+  const yes = clamp(parl.yourParty - defect + Math.round((parl.seats - parl.yourParty) * oppYes) + shift, 0, parl.seats);
   return { yes, needed: Math.floor(parl.seats / 2) + 1 };
 }
 
@@ -277,7 +291,7 @@ export function proposeNationalLaw(g: GameState, id: string, rng: Rng): GameStat
   const p = g.player;
   const law = nationalLaw(id);
   if (!isLeader(p) || blocked(p) || !law || p.nation!.laws.includes(id)) return g;
-  const { yes, needed } = forecastNationalLaw(p, law);
+  const { yes, needed } = forecastNationalLaw(p, law, parliamentShift(g));
   const seats = p.nation!.parliament.seats;
   const actual = clamp(yes + Math.round((rng() - 0.5) * seats * 0.06), 0, seats);
   if (actual < needed) return log({ ...g, player: spendAction(p, p.nation!, { popularity: clamp(p.popularity - 1, 0, 100) }) }, `${p.nation!.parliament.name} rejects ${law.name} (${actual}–${seats - actual}).`);

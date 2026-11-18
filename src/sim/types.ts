@@ -41,7 +41,10 @@ export interface Country {
   name: string;
   fantasy: boolean;
   systemId: SystemId;
-  leader: { name: string; party: string; approval: number };
+  leader: Leader;
+  /** Main faith and how much religion matters in public life, 0..100. */
+  faith: FaithId;
+  religiosity: number;
   population: number;      // millions
   economy: Economy;
   stability: number;       // 0..100
@@ -73,6 +76,12 @@ export interface Player {
   nation: Nation | null;
   /** Set when your career at the top ends. */
   retired: boolean;
+  /** Your own faith, and how faith leaders feel about you (0..100). */
+  faith: FaithId;
+  clergy: number;
+  /** Politicians in your country at every level. */
+  contacts: Contact[];
+  sys: SystemState;
   /** Months until the current term ends. */
   termMonthsLeft: number;
   pendingEvent: PendingEvent | null;
@@ -215,8 +224,47 @@ export interface City {
   laws: string[];
 }
 
+export type TraitId = 'hawk' | 'dove' | 'populist' | 'technocrat' | 'pious' | 'secular' | 'vain' | 'generous' | 'corrupt' | 'reformer' | 'cautious' | 'charismatic';
+export type FocusId = 'economy' | 'security' | 'welfare' | 'faith' | 'diplomacy' | 'environment';
+export type FaithId = 'christian' | 'muslim' | 'hindu' | 'buddhist' | 'jewish' | 'folk' | 'secular' | 'flame' | 'tide' | 'ledger';
+
+/** A character's personality: how they lead, what they care about, what they believe. */
+export interface Character { name: string; traits: TraitId[]; focus: FocusId; faith: FaithId }
+
+export interface Leader extends Character { party: string; approval: number }
+
+/** A politician in your own country that you can work with or against. */
+export interface Contact extends Character {
+  id: string;
+  /** Ladder rung they sit on (0 = your first rung). -1 = a faith leader. */
+  rung: number;
+  role: string;
+  party: 'yours' | 'rival';
+  relation: number;    // -100..100, how they feel about you
+  endorsed: boolean;   // backing your current campaign
+  dealUsed: boolean;   // a joint deal already done this term
+}
+
+/** Each system's signature rule, tracked across your whole career. */
+export interface SystemState {
+  /** The system's signature meter, 0..100 (political capital, coalition, royal favor, patron favor, capital ties, citizen trust, share value, public patience). */
+  meter: number;
+  patronId: string | null;     // one-party: who sponsors your career
+  cohabitation: boolean;       // semi-presidential: the other top office is a rival
+  knighted: boolean;           // constitutional monarchy: honored by the crown
+  decrees: { id: string; turn: number }[]; // presidential: executive orders that courts may still strike down
+  lastPurgeTurn: number;       // one-party
+  reformsSeen: number;         // laws/initiatives already counted against coalition or patience
+}
+
 export interface Effects {
   groups?: Partial<Record<GroupId, number>>;
+  /** Faith leaders' favor toward you. */
+  clergy?: number;
+  /** Your system's signature meter (see SystemState.meter). */
+  meter?: number;
+  /** Your relation with the politician the event is about. */
+  contact?: number;
   popularity?: number; funds?: number; loyalty?: number;
   treasury?: number; crime?: number; services?: number; jobs?: number; happiness?: number; culture?: number;
 }
@@ -226,6 +274,20 @@ export interface PendingEvent {
   title: string;
   text: string;
   choices: { label: string; effects: Effects; log: string }[];
+  /** The politician this event is about, if any. */
+  contactId?: string;
+}
+
+/** Event templates. Text may use {name} {role} {city} {country} {leader} {faith}. */
+export interface EventDef extends PendingEvent {
+  /** Which jobs see it ('out' = out of office). Omitted: any office. */
+  kinds?: ('out' | 'local' | 'regional' | 'legislative' | 'cabinet' | 'head')[];
+  /** Omitted: every system. */
+  systems?: SystemId[];
+  /** Only in countries at least this religious. */
+  minReligiosity?: number;
+  /** Picks a politician for {name}/{role}; `contact` effects change your relation with them. */
+  about?: 'peer' | 'superior' | 'rival' | 'faith';
 }
 
 export interface GameState {

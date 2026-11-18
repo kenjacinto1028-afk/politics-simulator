@@ -1,4 +1,6 @@
 import type { Country, SystemId } from '../sim/types';
+import { COUNTRY_FAITH } from './people';
+import { seedLeaderTraits } from '../sim/people';
 
 // Seed data: approximate, rounded figures. Leaders of real countries are
 // fictional so the game never depicts real people.
@@ -77,7 +79,9 @@ const ROWS: Row[] = [
 function toCountry(r: Row): Omit<Country, 'relations'> {
   const [id, name, fantasy, systemId, leader, party, approval, population, gdpBn, growth, unemployment, inflation, debtToGdp, stability, tourism, culture] = r;
   return {
-    id, name, fantasy: fantasy === 1, systemId, leader: { name: leader, party, approval }, population,
+    id, name, fantasy: fantasy === 1, systemId, population,
+    leader: { name: leader, party, approval, ...seedLeaderTraits(id), faith: COUNTRY_FAITH[id][0] },
+    faith: COUNTRY_FAITH[id][0], religiosity: COUNTRY_FAITH[id][1],
     economy: { gdpBn, growth, unemployment, inflation, debtToGdp }, stability, tourism, culture,
   };
 }
