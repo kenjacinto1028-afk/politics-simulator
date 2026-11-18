@@ -135,7 +135,8 @@ describe('event content', () => {
     let g = mayor();
     let seen = 0;
     for (let i = 0; i < 120; i++) {
-      g = advanceMonth(g, rngFor(g));
+      // Stay in office the whole time so luck in elections doesn't end the test early.
+      g = advanceMonth({ ...g, player: { ...g.player!, termMonthsLeft: 48 } }, rngFor(g));
       const ev = g.player!.pendingEvent;
       if (ev) {
         expect(ev.text).not.toMatch(/\{\w+\}/);

@@ -171,7 +171,47 @@ export interface Player {
   abroad?: { sisters: string[]; lastTrip: number };
   /** Things this career has done, for achievements. */
   feats?: string[];
+  /** How your choices have made people see you. */
+  rep?: Rep;
+  /** Where you come from, and how proud it is of you. */
+  home?: Home;
+  /** Scandal risk, and the skeletons in your closet. */
+  scandal?: ScandalState;
 }
+
+/** Reputation axes, -100..100. */
+export interface Rep {
+  /** Honest (+) vs shady (-). */
+  integrity: number;
+  /** Team player (+) vs maverick (-). */
+  party: number;
+  /** For ordinary people (+) vs for business (-). */
+  people: number;
+  /** Bold (+) vs cautious (-). */
+  bold: number;
+}
+
+export interface Home { city: string; region: string; /** 0..100: how much your home turf backs you. */ pride: number }
+
+/** Something that could come out: a favor owed to a donor, a cover-up, a side deal. */
+export interface Secret {
+  id: string;
+  text: string;
+  sev: number;            // 1 minor .. 3 career-threatening
+  turn: number;
+  donor?: string;
+  favor?: string;
+  amount?: number;
+  /** Turn the donor calls in the favor. */
+  due?: number;
+  /** A politician who knows about it and may use it. */
+  holder?: string;
+  /** Hidden by money until this turn. */
+  buriedUntil?: number;
+  denied?: number;
+}
+
+export interface ScandalState { heat: number; secrets: Secret[]; exposed: number; nextId: number }
 
 export interface Moment { turn: number; date: string; kind: 'office' | 'election' | 'war' | 'policy' | 'scandal' | 'end'; text: string }
 export interface YearSnap {
@@ -388,6 +428,16 @@ export interface Effects {
   treasury?: number; crime?: number; services?: number; jobs?: number; happiness?: number; culture?: number;
   /** Marks an achievement-worthy deed (see Player.feats). */
   feat?: string;
+  /** Scandal risk change. */
+  heat?: number;
+  /** Leaves a secret that may come out later. */
+  secret?: { text: string; sev: number; donor?: string; favor?: string; amount?: number; due?: number };
+  /** What happens to the secret this event is about. */
+  onSecret?: 'settle' | 'delay' | 'bury' | 'deny';
+  /** Direct nudges to your reputation. */
+  rep?: Partial<Rep>;
+  /** Home turf pride change. */
+  pride?: number;
 }
 
 export interface PendingEvent {
@@ -397,6 +447,8 @@ export interface PendingEvent {
   choices: { label: string; effects: Effects; log: string }[];
   /** The politician this event is about, if any. */
   contactId?: string;
+  /** The secret this event is about, if any. */
+  secretId?: string;
 }
 
 /** Event templates. Text may use {name} {role} {city} {country} {leader} {faith}. */

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { visitHometown } from './sim/reputation';
 import { addPlaySeconds, addTotalPlaySeconds } from './sim/playtime';
 import { advanceMonth, newGame, rngFor } from './sim/engine';
 import { blockingPrompt, doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
@@ -72,6 +73,7 @@ interface Store {
   sisterCity: (id: string) => void;
   tradeTrip: (id: string) => void;
   counterIntelSweep: () => void;
+  visitHometown: () => void;
   runs: RunSummary[];
   act: (a: CampaignAction) => void;
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
@@ -129,6 +131,7 @@ export const useGame = create<Store>((set, get) => ({
   saveRev: 0,
   message: null,
   tickPlaytime: (sec) => { if (!get().game.player) return; addTotalPlaySeconds(sec); set((s) => ({ game: addPlaySeconds(s.game, sec) })); },
+  visitHometown: () => set((s) => ({ game: visitHometown(s.game) })),
   setWorldSize: (size) => set({ game: newGame(size, freshSeed()) }),
   startCareer: (name, countryId, faith) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99), faith) })),
   meetContact: (id) => set((s) => ({ game: meetContact(s.game, id, actionRng(s.game)) })),

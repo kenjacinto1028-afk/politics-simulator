@@ -132,8 +132,9 @@
 - [x] High-contrast colors and buttons — src/index.css palette vars (Sonnet)
 - [ ] Tabs + sub-tabs, sticky Next month / Menu bar
 - [x] Filters + sorting on all tables — src/ui/DataTable.tsx, WorldTable.tsx, Nation/People/Governor lists (Sonnet); wire WorldTable in Game.tsx with tabs step
-- [ ] Home region support
-- [ ] Player traits + how politicians see you
-- [ ] Scandals (donor favors and more)
-- [ ] Event choices with real trade-offs, more options
+- [x] Home region support (engine) — src/sim/reputation.ts homeEdge/supportByArea/tickHome/visitHometown; career.ts scores
+- [x] Player traits + how politicians see you (engine) — reputation.ts rep axes, opinionOf, driftRelations
+- [x] Scandals (engine) — src/sim/scandals.ts: donor strings, favors due, blackmail, exposure, attack ads
+- [x] Event choices trade-offs + middle ground/side deal/put off — src/sim/choices.ts; tests scandals.test.ts (136 pass)
+- [ ] Screens: You tab (reputation, home support, scandal risk), event notes, hometown action
 - [ ] Tests, phone + computer check, PR
