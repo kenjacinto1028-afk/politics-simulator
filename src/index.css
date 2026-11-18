@@ -147,7 +147,7 @@ button.action small.money { color: #ffe08a; }
   .modal .actions { flex-direction: column; }
   .modal .actions button { width: 100%; }
   .bottombar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: var(--panel); border-top: 1px solid var(--border); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
-  .bottombar .tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 6px; }
+  .bottombar .tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 6px; }
   .bottombar .tab { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 2px; font-size: 14px; position: relative; }
   .bottombar .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
   .bottombar .dot { position: absolute; top: 6px; right: 14px; width: 9px; height: 9px; border-radius: 50%; background: var(--bad); }
@@ -226,3 +226,21 @@ button.action small.money { color: #ffe08a; }
 .sortable th[aria-sort="descending"]::after { content: ' \25BC'; }
 .sortable th:not([aria-sort]):not(.nosort)::after { content: ' \2195'; font-size: 10px; color: var(--muted); opacity: .6; }
 @media (max-width: 760px) { .table-tools input, .table-tools select { min-height: 40px; width: auto; } .table-tools input { flex: 1 1 100%; max-width: none; } .subtab { min-height: 40px; } }
+
+/* Tabs, sub-tabs and the sticky bar */
+.topbar .next small { font-weight: 500; opacity: 1; }
+.tabpage { min-width: 0; }
+.tabpage > .panel:last-child { margin-bottom: 0; }
+button.linkish { background: none; border: 0; padding: 0; margin: 0; min-height: 0; color: #9cc0ff; text-decoration: underline; font: inherit; cursor: pointer; }
+.bottombar .nextrow { display: flex; gap: 6px; margin-top: 0; flex-wrap: nowrap; }
+.bottombar .nextrow .next { flex: 1; width: auto; }
+.bottombar .nextrow .menu { flex: 0 0 auto; }
+@media (max-width: 760px) { .bottombar .tab { font-size: 13px; } }
+
+/* Reputation axes and event choice effect lines */
+.axis { display: grid; grid-template-columns: 110px 1fr 110px; gap: 8px; align-items: center; margin: 6px 0; font-size: 14px; }
+.axis span { color: var(--muted); }
+.axis span:last-child { text-align: right; }
+.axis span.on { color: var(--text); font-weight: 700; }
+small.effect-line { line-height: 1.4; }
+@media (max-width: 760px) { .axis { grid-template-columns: 84px 1fr 84px; font-size: 13px; } }

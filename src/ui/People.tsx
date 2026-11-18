@@ -7,6 +7,7 @@ import { kindOf } from '../sim/offices';
 import type { Contact } from '../sim/types';
 import { Stat } from './Stat';
 import { Portrait } from './Portrait';
+import { OpinionLine } from './You';
 
 function RelBar({ value }: { value: number }) {
   const v = Math.max(-100, Math.min(100, value));
@@ -46,6 +47,7 @@ function ContactCard({ c, systemId }: { c: Contact; systemId: string }) {
       </div>
       <p className="small-text">Cares about: {FOCUSES[c.focus].name} · Faith: {FAITHS[c.faith].name}</p>
       <RelBar value={c.relation} />
+      <OpinionLine id={c.id} />
       <div className="row">
         <button className="small" disabled={busy} title={corrupt ? 'Expects a $10k gift' : undefined} onClick={() => meetContact(c.id)}>Meet{corrupt ? ' ($10k gift)' : ''}</button>
         {c.rung >= 0 && <button className="small" disabled={busy || !!endorse} title={endorse ?? 'Ask them to back your campaign'} onClick={() => askEndorsement(c.id)}>Ask for endorsement</button>}

@@ -130,11 +130,11 @@
 - [x] Playtime counter (total + per save) — src/sim/playtime.ts, App.tsx ticker, save slot labels, NewGame total
 - [x] New game name: Mandate — index.html, NewGame.tsx, README
 - [x] High-contrast colors and buttons — src/index.css palette vars (Sonnet)
-- [ ] Tabs + sub-tabs, sticky Next month / Menu bar
+- [x] Tabs + sub-tabs, sticky Next month / Menu bar — Game.tsx rewritten (6 tabs incl. You), topbar desktop, Menu in phone bottombar
 - [x] Filters + sorting on all tables — src/ui/DataTable.tsx, WorldTable.tsx, Nation/People/Governor lists (Sonnet); wire WorldTable in Game.tsx with tabs step
 - [x] Home region support (engine) — src/sim/reputation.ts homeEdge/supportByArea/tickHome/visitHometown; career.ts scores
 - [x] Player traits + how politicians see you (engine) — reputation.ts rep axes, opinionOf, driftRelations
 - [x] Scandals (engine) — src/sim/scandals.ts: donor strings, favors due, blackmail, exposure, attack ads
 - [x] Event choices trade-offs + middle ground/side deal/put off — src/sim/choices.ts; tests scandals.test.ts (136 pass)
-- [ ] Screens: You tab (reputation, home support, scandal risk), event notes, hometown action
+- [x] Screens: You tab (reputation, home support, scandal risk), event notes, hometown action — src/ui/You.tsx, effects.tsx EffectLines
 - [ ] Tests, phone + computer check, PR
