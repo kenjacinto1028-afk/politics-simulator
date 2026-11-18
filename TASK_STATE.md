@@ -81,3 +81,10 @@
 - [x] Allies: ask for aid/troops (favors, personality), allies call for help, refusing costs trust or the alliance
 - [x] UI: World power panel, World table columns, Diplomacy bloc/allies cards; save v7 migration
 - [x] Tested — 94 tests, fuzz incl. new actions, 43 old saves clicked through, phone layout
+
+## Deepen country mechanics, simplified (branch feat/society)
+- [x] Data — src/data/society.ts: 16 scores + 18 three-way policies (Opus)
+- [x] Sim — src/sim/society.ts: scores settle toward targets (wealth, budget, policies, each other); living population (births, deaths, migration, aging); world climate, energy price, outbreaks; disasters; spy ops; effects on growth, inflation, stability, mood, voter groups; policy spending (Opus)
+- [x] 40 score-triggered events (Sonnet) — src/data/society-events.ts, EventDef.when
+- [x] UI — country scores panel (World tab, all levels), Policies panel (leader), spy buttons; save v8 migration
+- [x] Tested — 100 tests, fuzz incl. policies/spying, 43 old saves clicked through, phone layout

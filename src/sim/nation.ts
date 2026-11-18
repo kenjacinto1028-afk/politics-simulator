@@ -6,6 +6,8 @@ import { kindOf } from './offices';
 import { has, makeCharacter } from './people';
 import { parliamentShift } from './systems';
 import { nuclearShield, protector, tickAllies, warPower } from './geo';
+import { policySpending, societyEffects } from './society';
+import type { WorldState } from './types';
 import type { ResourceId } from '../data/geo';
 import type { Rng } from './rng';
 import type { Country, GameState, GroupId, Nation, Player } from './types';
@@ -47,7 +49,7 @@ function lawTargets(n: Nation): Required<NationalTargets> {
 }
 
 /** Total spending including laws, % of GDP. */
-export const totalSpending = (n: Nation) => n.spending + lawTargets(n).spending;
+export const totalSpending = (n: Nation) => n.spending + lawTargets(n).spending + policySpending(n);
 /** Yearly deficit, % of GDP (negative = surplus). */
 export const deficit = (n: Nation) => totalSpending(n) - n.taxRate;
 
@@ -55,7 +57,8 @@ export const deficit = (n: Nation) => totalSpending(n) - n.taxRate;
 export function nationalMood(c: Country, n: Nation): number {
   const e = c.economy;
   const pr = n.priorities;
-  return clamp(50 + (e.growth - 2) * 5 - (e.unemployment - 6) * 3 - (e.inflation - 3) * 2.5 + (pr.health - 20) * 0.3 + (pr.welfare - 20) * 0.3
+  const se = c.society ? societyEffects(c, n).mood : 0;
+  return clamp(50 + se + (e.growth - 2) * 5 - (e.unemployment - 6) * 3 - (e.inflation - 3) * 2.5 + (pr.health - 20) * 0.3 + (pr.welfare - 20) * 0.3
     - (n.taxRate - 30) * 0.5 - (n.war && n.war.months > 3 ? 8 : 0)
     // Voters notice runaway borrowing.
     - Math.max(0, deficit(n) - 3) * 1.5 - Math.max(0, e.debtToGdp - 100) * 0.1, 0, 100);
@@ -71,6 +74,7 @@ export function nationGroupTargets(c: Country, n: Nation): Record<GroupId, numbe
     retirees: 50 + (pr.health - 20) * 0.8 - (e.inflation - 3) * 3 + lawShift('retirees'),
     students: 50 + (pr.education - 20) * 0.8 + (e.growth - 2) * 2 + lawShift('students'),
   };
+  if (c.society) { const sg = societyEffects(c, n).groups; for (const gId of GROUP_IDS) raw[gId] += sg[gId]; }
   for (const gId of GROUP_IDS) raw[gId] = clamp(50 + (raw[gId] - 50) * 0.7, 0, 100);
   return raw;
 }
@@ -82,20 +86,21 @@ export function tradeBonus(res: ResourceId[]) {
   return { growth: n('tech') * 0.15 + n('minerals') * 0.08, inflation: -n('oil') * 0.4, unemployment: -n('industry') * 0.3, stability: n('food') * 2 };
 }
 
-export function tickNationalEconomy(c: Country, n: Nation, popularity: number, rng: Rng, res: ResourceId[] = []): Country {
+export function tickNationalEconomy(c: Country, n: Nation, popularity: number, rng: Rng, res: ResourceId[] = [], world?: WorldState): Country {
   const tb = tradeBonus(res);
+  const se = c.society ? societyEffects(c, n, world) : { growth: 0, inflation: 0, stability: 0 };
   const lt = lawTargets(n);
   const pr = n.priorities;
   const e = c.economy;
   const war = n.war ? 1 : 0;
   const growthT = 2.2 + (30 - n.taxRate) * 0.06 + (pr.infrastructure - 20) * 0.03 + (pr.education - 20) * 0.02
-    + n.tradeDeals.length * 0.15 - Math.max(0, e.debtToGdp - 100) * 0.01 - war + lt.growth + tb.growth;
+    + n.tradeDeals.length * 0.15 - Math.max(0, e.debtToGdp - 100) * 0.01 - war + lt.growth + tb.growth + se.growth;
   const growth = clamp(approach(e.growth, growthT, 0.1) + (rng() - 0.5) * 0.3, -8, 12);
   const def = deficit(n) + war * 2;
-  const inflation = clamp(approach(e.inflation, 2 + Math.max(0, def) * 0.4 + (growth - 2) * 0.3 + lt.inflation + tb.inflation, 0.1) + (rng() - 0.5) * 0.2, -2, 60);
+  const inflation = clamp(approach(e.inflation, 2 + Math.max(0, def) * 0.4 + (growth - 2) * 0.3 + lt.inflation + tb.inflation + se.inflation, 0.1) + (rng() - 0.5) * 0.2, -2, 60);
   const unemployment = clamp(approach(e.unemployment, 6 - (growth - 2) * 0.6 - (pr.welfare - 20) * 0.02 + lt.unemployment + tb.unemployment, 0.08), 1, 40);
   const debtToGdp = clamp(e.debtToGdp + def / 12 - growth / 12 * (e.debtToGdp / 100), 0, 400);
-  const stability = clamp(approach(c.stability, 50 + (popularity - 50) * 0.4 - (unemployment - 6) * 2 - (inflation - 3) * 1.5 + (pr.defense - 20) * 0.2 + lt.stability + tb.stability, 0.08), 0, 100);
+  const stability = clamp(approach(c.stability, 50 + (popularity - 50) * 0.4 - (unemployment - 6) * 2 - (inflation - 3) * 1.5 + (pr.defense - 20) * 0.2 + lt.stability + tb.stability + se.stability, 0.08), 0, 100);
   return { ...c, stability, economy: { ...e, growth, inflation, unemployment, debtToGdp, gdpBn: e.gdpBn * (1 + growth / 1200) } };
 }
 
@@ -119,7 +124,7 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
   let p = g.player!;
   let n = p.nation!;
   const lines: string[] = [];
-  let country = tickNationalEconomy(g.countries[p.countryId], n, p.popularity, rng, n.tradeDeals.map((id) => g.countries[id]?.resource).filter((r): r is ResourceId => !!r));
+  let country = tickNationalEconomy(g.countries[p.countryId], n, p.popularity, rng, n.tradeDeals.map((id) => g.countries[id]?.resource).filter((r): r is ResourceId => !!r), g.world);
   const countries = { ...g.countries };
 
   if (n.war) {

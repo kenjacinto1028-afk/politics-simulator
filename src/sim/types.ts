@@ -1,4 +1,5 @@
 import type { BlocId, RegionId, ResourceId } from '../data/geo';
+import type { PolicyId, StatId } from '../data/society';
 // Core domain types. Player nation is simulated in detail; others at a high level.
 
 export type SystemId =
@@ -58,6 +59,18 @@ export interface Country {
   military: number;
   nuclear: boolean;
   resource: ResourceId;
+  /** Country scores 0..100 (elderly in %, migration per 1,000 a year). */
+  society: Record<StatId, number>;
+}
+
+/** Things every country shares. */
+export interface WorldState {
+  /** Global warming 0..100. Rises with pollution. */
+  climate: number;
+  /** World oil and gas price, 100 = normal. */
+  energyPrice: number;
+  /** Months left of a world outbreak; 0 = none. */
+  outbreak: number;
 }
 
 /** An ally's request for help. Unanswered calls count as a refusal. */
@@ -225,6 +238,8 @@ export interface Nation {
   asked?: Record<string, number>;
   /** An ally asking you for help right now. */
   allyCall?: AllyCall | null;
+  /** Your policy in each area: 0, 1 (default) or 2. */
+  policies?: Partial<Record<PolicyId, 0 | 1 | 2>>;
 }
 
 export interface Region {
@@ -325,6 +340,8 @@ export interface EventDef extends PendingEvent {
   systems?: SystemId[];
   /** Only in countries at least this religious. */
   minReligiosity?: number;
+  /** Only when a country score (or world value) is above/below a level. */
+  when?: { stat: StatId | 'tourism' | 'culture' | 'climate' | 'outbreak' | 'energyPrice'; above?: number; below?: number };
   /** Picks a politician for {name}/{role}; `contact` effects change your relation with them. */
   about?: 'peer' | 'superior' | 'rival' | 'faith';
 }
@@ -339,5 +356,6 @@ export interface GameState {
   player: Player | null;
   countries: Record<string, Country>;
   conflicts: Conflict[];
+  world: WorldState;
   log: string[];
 }

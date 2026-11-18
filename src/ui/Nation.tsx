@@ -11,6 +11,7 @@ import { countryLabel } from '../data/local-names';
 import { armsBlocker, armsCost, inviteBlocker, nuclearShield, TIERS, tierOf } from '../sim/geo';
 import { BLOCS, RESOURCES } from '../data/geo';
 import { AllyCallCard, AlliesCard, BlocActions } from './WorldPower';
+import { PolicyPanel, SpyRow } from './Society';
 
 const f1 = (n: number) => n.toFixed(1);
 const n0 = (n: number) => Math.round(n).toString();
@@ -194,6 +195,7 @@ export function Diplomacy() {
                       {!armsWhy && <button className="small" disabled={blocked} title={`$${armsCost(game.countries[p.countryId])}bn, stronger army`} onClick={() => armsDeal(c.id)}>Buy arms</button>}
                       {showInvite && <button className="small" disabled={blocked || !!inviteWhy} title={inviteWhy ?? 'Bring them into your bloc'} onClick={() => inviteToBloc(c.id)}>Invite to bloc{inviteWhy ? ` (${inviteWhy})` : ''}</button>}
                       <button className="small secondary" disabled={blocked} onClick={() => sanction(c.id)}>Sanction</button>
+                      <SpyRow target={c.id} />
                       <button className="small secondary" disabled={blocked || !canWar} title={n.war ? 'You are already at war' : shield ?? `Needs relations of ${WAR_MAX_RELATION} or worse`} onClick={() => declareWar(c.id)}>Declare war{shield ? ' (nuclear deterrence)' : ''}</button>
                     </div>
                   </td>
@@ -219,6 +221,7 @@ export function Nation({ part = 'all' }: { part?: 'all' | 'job' } = {}) {
       <BudgetPanel key={game.turn} nation={n} />
       <Parliament />
       <NationalLaws />
+      <PolicyPanel />
       {part === 'all' && <Diplomacy />}
       <div className="panel">
         <h3>Your legacy</h3>

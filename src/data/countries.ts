@@ -2,6 +2,7 @@ import type { Country, SystemId } from '../sim/types';
 import { COUNTRY_FAITH } from './people';
 import { seedLeaderTraits } from '../sim/people';
 import { BLOCS, GEO, isRival } from './geo';
+import { seedSociety } from '../sim/society';
 
 // Seed data: approximate, rounded figures. Leaders of real countries are
 // fictional so the game never depicts real people.
@@ -78,6 +79,11 @@ const ROWS: Row[] = [
 ];
 
 function toCountry(r: Row): Omit<Country, 'relations'> {
+  const base = toBase(r);
+  return { ...base, society: seedSociety(base) };
+}
+
+function toBase(r: Row): Omit<Country, 'relations' | 'society'> {
   const [id, name, fantasy, systemId, leader, party, approval, population, gdpBn, growth, unemployment, inflation, debtToGdp, stability, tourism, culture] = r;
   return {
     id, name, fantasy: fantasy === 1, systemId, population,
@@ -86,6 +92,12 @@ function toCountry(r: Row): Omit<Country, 'relations'> {
     economy: { gdpBn, growth, unemployment, inflation, debtToGdp }, stability, tourism, culture,
     ...geoOf(id),
   };
+}
+
+/** A country's starting tourism and culture, which they drift back toward. */
+export function baseTourismCulture(id: string): [number, number] | null {
+  const r = ROWS.find((x) => x[0] === id);
+  return r ? [r[14], r[15]] : null;
 }
 
 export function seedCountries(size: WorldSize = 25): Record<string, Country> {
