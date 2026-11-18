@@ -138,4 +138,4 @@
 - [x] Event choices trade-offs + middle ground/side deal/put off — src/sim/choices.ts; tests scandals.test.ts (136 pass)
 - [x] Screens: You tab (reputation, home support, scandal risk), event notes, hometown action — src/ui/You.tsx, effects.tsx EffectLines
 - [x] Tests (136), lint, build, phone + computer browser check — screenshots in project files screenshots/polish
-- [ ] PR
+- [x] PR #14 opened
