@@ -1,4 +1,4 @@
-import { LEADER_FIRST, LEADER_LAST, NATIONAL_LAWS, type NationalLawDef, type NationalPriority, type NationalTargets } from '../data/nation-content';
+import { NATIONAL_LAWS, type NationalLawDef, type NationalPriority, type NationalTargets } from '../data/nation-content';
 import { GROUPS } from '../data/city-content';
 import { SYSTEMS } from '../data/systems';
 import { clamp } from './city';
@@ -13,7 +13,6 @@ export const ADDRESS_COOLDOWN = 6;
 export const TRADE_MIN_RELATION = 30;
 export const WAR_MAX_RELATION = -50;
 const PRIORITIES: NationalPriority[] = ['defense', 'welfare', 'health', 'education', 'infrastructure'];
-const pick = <T,>(arr: readonly T[], rng: Rng) => arr[Math.floor(rng() * arr.length)];
 const stamp = (g: GameState) => `${g.year}-${String(g.month).padStart(2, '0')}`;
 const log = (g: GameState, line: string): GameState => ({ ...g, log: [`${stamp(g)}: ${line}`, ...g.log].slice(0, 200) });
 const approach = (cur: number, target: number, rate: number) => cur + (target - cur) * rate;
@@ -185,7 +184,7 @@ export function tickWorld(g: GameState, rng: Rng): GameState {
     }
     let leader = c.leader;
     if (c.leader.approval < 35 && rng() < 0.03) {
-      const ch = makeCharacter(c, rng, `${pick(LEADER_FIRST, rng)} ${pick(LEADER_LAST, rng)}`);
+      const ch = makeCharacter(c, rng);
       leader = { ...ch, party: 'New Movement', approval: 55 };
       lines.push(`${c.name}: ${c.leader.name} is out. ${leader.name} takes power.`);
     }

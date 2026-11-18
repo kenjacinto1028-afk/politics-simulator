@@ -1,4 +1,5 @@
-import { FAITHS, FIRST_NAMES, LAST_NAMES, OPPOSED, OTHER_CITIES, TRAITS } from '../data/people';
+import { FAITHS, OPPOSED, TRAITS } from '../data/people';
+import { cityName, personName, regionName } from './names';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
 import { clamp } from './city';
 import { kindOf } from './offices';
@@ -25,7 +26,7 @@ export function makeCharacter(country: Country, rng: Rng, name?: string): Charac
   if (traits.includes('pious') && faith === 'secular') faith = country.faith === 'secular' ? 'folk' : country.faith;
   if (traits.includes('secular')) faith = 'secular';
   const focus = traits.includes('pious') && rng() < 0.5 ? 'faith' : pick(FOCUS_IDS, rng);
-  return { name: name ?? `${pick(FIRST_NAMES, rng)} ${pick(LAST_NAMES, rng)}`, traits, focus, faith };
+  return { name: name ?? personName(country.id, rng), traits, focus, faith };
 }
 
 /** Deterministic leader personality for a starting country (seed data has no RNG). */
@@ -41,7 +42,8 @@ export const has = (c: Pick<Character, 'traits'> | undefined, t: TraitId) => !!c
 const LEADER_ID = 'leader';
 
 /** Everyone you'll deal with: two people per rung of your ladder, the national leader, and a faith leader. */
-export function newContacts(country: Country, playerFaith: FaithId, rng: Rng): Contact[] {
+export function newContacts(country: Country, playerFaith: FaithId, rng: Rng, homeCity?: string): Contact[] {
+  const used = homeCity ? [homeCity] : [];
   const ladder = SYSTEMS[country.systemId].ladder;
   const oneParty = country.systemId === 'one-party';
   const out: Contact[] = [];
@@ -51,7 +53,8 @@ export function newContacts(country: Country, playerFaith: FaithId, rng: Rng): C
       if (top && i === 0) continue; // the sitting leader is added below
       const party = oneParty || i === 0 ? 'yours' : 'rival';
       const kind = kindOf(office);
-      const place = kind === 'local' ? ` of ${pick(OTHER_CITIES, rng)}` : kind === 'regional' ? ` of ${pick(OTHER_CITIES, rng)} region` : '';
+      const where = () => { const c = cityName(country.id, rng, used); used.push(c); return c; };
+      const place = kind === 'local' ? ` of ${where()}` : kind === 'regional' ? ` of ${regionName(country.id, rng)}` : '';
       const role = top ? (oneParty ? 'Party elder' : 'Opposition leader') : `${OFFICE_NAMES[office]}${place}`;
       out.push(contact(country, rng, `c${rung}-${i}`, rung, role, party, playerFaith));
     }

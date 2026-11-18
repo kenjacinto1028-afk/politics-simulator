@@ -145,3 +145,32 @@ describe('event content', () => {
     expect(seen).toBeGreaterThan(0);
   });
 });
+
+describe('local names', () => {
+  it('every country has a full name list', async () => {
+    const { LOCALES } = await import('../data/locales');
+    const g = newGame(50, 1);
+    for (const id of Object.keys(g.countries)) {
+      const l = LOCALES[id];
+      expect(l, id).toBeTruthy();
+      expect(l.cities.length, id).toBeGreaterThanOrEqual(10);
+      expect(l.regions.length, id).toBeGreaterThanOrEqual(5);
+      expect(l.first.length, id).toBeGreaterThanOrEqual(10);
+      expect(l.last.length, id).toBeGreaterThanOrEqual(10);
+    }
+  });
+
+  it('a Philippine career uses Philippine cities, provinces and names', async () => {
+    const { LOCALES } = await import('../data/locales');
+    const { newRegion } = await import('./governor');
+    const ph = LOCALES.phl;
+    const g = start('phl');
+    const p = g.player!;
+    expect(ph.cities).toContain(p.city!.name);
+    const last = (n: string) => n.split(' ').slice(1).join(' ');
+    expect(ph.last).toContain(last(p.campaign!.rival.name));
+    for (const c of p.contacts.filter((x) => x.id !== 'leader')) expect(ph.last, c.name).toContain(last(c.name));
+    const r = newRegion(p.city!.name, rngFor(g, 5), 'phl');
+    expect(ph.regions).toContain(r.name);
+  });
+});

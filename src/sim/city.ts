@@ -1,3 +1,4 @@
+import { personName } from './names';
 import { COUNCIL_FIRST, COUNCIL_LAST, LAWS, PROJECTS, type StatKey } from '../data/city-content';
 import type { City, Country, CouncilMember, GroupId, SpendKey } from './types';
 import type { Rng } from './rng';
@@ -13,22 +14,22 @@ export const RESERVE_RATE = 0.2;
 
 const LEANS: GroupId[] = ['workers', 'workers', 'business', 'retirees', 'retirees', 'students', 'business'];
 
-export function newCouncil(rng: Rng): CouncilMember[] {
+export function newCouncil(rng: Rng, countryId?: string): CouncilMember[] {
   const used = new Set<string>();
   return LEANS.map((leans) => {
     let name = '';
-    do name = `${COUNCIL_FIRST[Math.floor(rng() * COUNCIL_FIRST.length)]} ${COUNCIL_LAST[Math.floor(rng() * COUNCIL_LAST.length)]}`;
+    do name = countryId ? personName(countryId, rng) : `${COUNCIL_FIRST[Math.floor(rng() * COUNCIL_FIRST.length)]} ${COUNCIL_LAST[Math.floor(rng() * COUNCIL_LAST.length)]}`;
     while (used.has(name));
     used.add(name);
     return { name, leans, relationship: Math.round(35 + rng() * 30) };
   });
 }
 
-export function newCity(name: string, rng: Rng): City {
+export function newCity(name: string, rng: Rng, countryId?: string): City {
   return {
     name, population: Math.round(150 + rng() * 350), taxRate: 5, spending: { ...DEFAULT_SPENDING }, treasury: 200,
     crime: 40 + rng() * 20, services: 45 + rng() * 15, jobs: 45 + rng() * 15, happiness: 45 + rng() * 10, culture: 40 + rng() * 20,
-    council: newCouncil(rng), building: [], built: [], laws: [],
+    council: newCouncil(rng, countryId), building: [], built: [], laws: [],
   };
 }
 

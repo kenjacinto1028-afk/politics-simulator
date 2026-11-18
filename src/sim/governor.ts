@@ -1,6 +1,7 @@
 import { BILLS, PRIORITY_STAT, STATE_CITY_NAMES, STATE_LAWS, STATE_NAMES, type BillDef, type StateLawDef, type StatePriority, type StateStat } from '../data/state-content';
 import { GROUPS } from '../data/city-content';
 import { COUNCIL_FIRST, COUNCIL_LAST } from '../data/city-content';
+import { cityNames, personName, regionName } from './names';
 import { clamp, soft } from './city';
 import { kindOf } from './offices';
 import type { Rng } from './rng';
@@ -17,16 +18,16 @@ const pick = <T,>(arr: readonly T[], rng: Rng) => arr[Math.floor(rng() * arr.len
 const stamp = (g: GameState) => `${g.year}-${String(g.month).padStart(2, '0')}`;
 const log = (g: GameState, line: string): GameState => ({ ...g, log: [`${stamp(g)}: ${line}`, ...g.log].slice(0, 200) });
 
-export function newRegion(homeCity: string, rng: Rng): Region {
-  const others = STATE_CITY_NAMES.filter((n) => n !== homeCity).sort(() => rng() - 0.5).slice(0, 4);
-  const person = () => `${pick(COUNCIL_FIRST, rng)} ${pick(COUNCIL_LAST, rng)}`;
+export function newRegion(homeCity: string, rng: Rng, countryId?: string): Region {
+  const others = countryId ? cityNames(countryId, rng, 4, [homeCity]) : STATE_CITY_NAMES.filter((n) => n !== homeCity).sort(() => rng() - 0.5).slice(0, 4);
+  const person = () => (countryId ? personName(countryId, rng) : `${pick(COUNCIL_FIRST, rng)} ${pick(COUNCIL_LAST, rng)}`);
   const cities = [homeCity, ...others].map((name, i) => ({
     name, home: i === 0, population: Math.round(120 + rng() * 600), happiness: 45 + rng() * 15,
     mayor: i === 0 ? 'Your successor' : person(), mayorRelationship: i === 0 ? 75 : Math.round(30 + rng() * 40),
   }));
   const seats = 60;
   return {
-    name: pick(STATE_NAMES, rng), taxRate: 5, budget: { ...DEFAULT_BUDGET }, treasury: 400,
+    name: countryId ? regionName(countryId, rng) : pick(STATE_NAMES, rng), taxRate: 5, budget: { ...DEFAULT_BUDGET }, treasury: 400,
     stats: { education: 50, health: 50, infrastructure: 50, safety: 50, economy: 50 },
     happiness: 50, cities, legislature: { seats, yourParty: Math.round(20 + rng() * 14), goodwill: 50 },
     laws: [], pendingBill: null, recentBills: [], billCooldown: 2, lastAddressTurn: -99,

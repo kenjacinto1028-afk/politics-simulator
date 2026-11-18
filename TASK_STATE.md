@@ -66,3 +66,9 @@
 - [x] Phone layout: bottom tab bar + Next month, 44px tap targets, readable text, stacked diplomacy cards, bottom-sheet popups (Sonnet) — Game.tsx, Nation.tsx, index.css
 - [x] Phone tests on 43 saves; fixed zoomed-out World tab (grid min-width) and popups behind tab bar (z-index)
 - [x] Merge, play link
+
+## Local city, region and people names (branch feat/local-names-people)
+- [x] Name lists for all 50 countries — src/data/locales.ts (Sonnet): 14 cities, 8 regions, 24+24 names, 4 parties each; fantasy countries invented
+- [x] Used everywhere — src/sim/names.ts; city, council, rivals, parties, regions, contacts, AI leaders (Opus)
+- [x] Tested — 83 tests incl. locale coverage + PH career check; browser check PH/Eldmar/Japan, no errors
+- [x] Merge, update play link
