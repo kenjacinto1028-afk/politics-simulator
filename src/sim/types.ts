@@ -61,6 +61,25 @@ export interface Country {
   resource: ResourceId;
   /** Country scores 0..100 (elderly in %, migration per 1,000 a year). */
   society: Record<StatId, number>;
+  /** AI-run countries: their current policies, recent decisions, next leadership vote, defense pacts, military rule. */
+  policies?: Partial<Record<PolicyId, 0 | 1 | 2>>;
+  decisions?: string[];
+  nextVote?: number;
+  pacts?: string[];
+  junta?: boolean;
+}
+
+/** A war between two AI countries. score > 0: a is winning. */
+export interface AIWar { a: string; b: string; months: number; score: number; backing?: number; playerSide?: string }
+
+/** Something an AI country asks of you, as leader. */
+export interface Offer {
+  from: string;
+  kind: 'trade' | 'alliance' | 'bloc' | 'tribute' | 'cut-trade';
+  target?: string;
+  amount?: number;
+  monthsLeft: number;
+  text: string;
 }
 
 /** Things every country shares. */
@@ -82,6 +101,8 @@ export interface AllyCall {
   monthsLeft: number;
   /** For troops: the civil war they are fighting in, if any. */
   conflict?: string;
+  /** For troops: the country they are at war with. */
+  warWith?: string;
 }
 
 /** A civil war where outside powers back opposite sides. */
@@ -272,6 +293,8 @@ export interface Nation {
   asked?: Record<string, number>;
   /** An ally asking you for help right now. */
   allyCall?: AllyCall | null;
+  /** An AI country's offer or demand waiting for your answer. */
+  offer?: Offer | null;
   /** Your policy in each area: 0, 1 (default) or 2. */
   policies?: Partial<Record<PolicyId, 0 | 1 | 2>>;
 }
@@ -390,6 +413,7 @@ export interface GameState {
   player: Player | null;
   countries: Record<string, Country>;
   conflicts: Conflict[];
+  wars?: AIWar[];
   world: WorldState;
   log: string[];
 }

@@ -24,7 +24,7 @@ export function aiPolicies(c: Country): Policies {
   return {};
 }
 export const policiesOf = (g: GameState, id: string): Policies =>
-  g.player?.nation && g.player.countryId === id && kindOf(g.player.office) === 'head' ? g.player.nation.policies ?? {} : aiPolicies(g.countries[id]);
+  g.player?.nation && g.player.countryId === id && kindOf(g.player.office) === 'head' ? g.player.nation.policies ?? {} : g.countries[id].policies ?? aiPolicies(g.countries[id]);
 export const levelOf = (pol: Policies, id: PolicyId) => pol[id] ?? 1;
 
 /** Sum of what your policies do. */
@@ -125,7 +125,7 @@ export function tickSociety(g: GameState, rng: Rng): GameState {
   } else if (world0.outbreak === 1) lines.push('The world outbreak is over.');
 
   // Energy prices jump with wars and civil wars, fall when the world is sick.
-  const strife = (leaderWar ? 1 : 0) + (g.conflicts ?? []).length;
+  const strife = (leaderWar ? 1 : 0) + (g.conflicts ?? []).length + (g.wars ?? []).length;
   const energyPrice = clamp(approach(world0.energyPrice, 100 + strife * 12 - (outbreak ? 20 : 0), 0.1) + (rng() - 0.5) * 6, 50, 250);
 
   // Pollution, weighted by economy size, warms the planet.
@@ -140,7 +140,7 @@ export function tickSociety(g: GameState, rng: Rng): GameState {
     const isLed = id === led;
     const ctx0: Ctx = {
       pol, pr: isLed ? g.player!.nation!.priorities : DEFAULT_PRIORITIES, world,
-      war: isLed ? !!leaderWar : false, civilWar: (g.conflicts ?? []).some((x) => x.country === id), popRate: 0,
+      war: isLed ? !!leaderWar : (g.wars ?? []).some((w) => w.a === id || w.b === id), civilWar: (g.conflicts ?? []).some((x) => x.country === id), popRate: 0,
     };
     const pc = popChange(c, ctx0);
     const popRate = pc.births - pc.deaths + pc.migration / 10;

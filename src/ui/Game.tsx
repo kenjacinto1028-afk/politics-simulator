@@ -235,7 +235,7 @@ export function Game() {
               <tbody>
                 {Object.values(game.countries).map((x) => (
                   <tr key={x.id} className={x.id === p.countryId ? 'home' : ''}>
-                    <td>{countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}</td><td>{fmt(x.leader.approval, 0)}%</td>
+                    <td>{countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}{x.junta ? ' (junta)' : ''}</td><td>{fmt(x.leader.approval, 0)}%</td>
                     <td>{fmt(x.economy.gdpBn, 0)}</td><td>{fmt(x.economy.growth)}%</td><td>{fmt(x.economy.unemployment)}%</td>
                   </tr>
                 ))}

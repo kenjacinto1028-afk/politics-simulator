@@ -10,6 +10,7 @@ import { askEndorsement, faithOutreach, feud, jointDeal, meetContact } from './p
 import { buyback, callReferendum, choosePatron, consultCoalition, defyCapital, executiveOrder, lobbyCapital, negotiateUnions, payRespects, royalOccasion } from './systems';
 import { answerAlly, armsDeal, askAlly, backSide, inviteToBloc, joinBloc, leaveBloc } from './geo';
 import { setPolicy, spyOp } from './society';
+import { answerOffer, backWar } from './ai';
 import { POLICY_IDS } from '../data/society';
 import type { BlocId } from '../data/geo';
 import { deserialize, serialize } from './save';
@@ -57,6 +58,7 @@ function randomAction(g: GameState, r: R): GameState {
     () => joinBloc(g, any(['atlantic', 'concord', 'crown', 'iron', 'none'] as BlocId[], r)), () => leaveBloc(g), () => armsDeal(g, any(others, r)), () => inviteToBloc(g, any(others, r)),
     () => setPolicy(g, any(POLICY_IDS, r), any([0, 1, 2] as const, r)), () => spyOp(g, any(others, r), r() < 0.5 ? 'steal' : 'sabotage', rng),
     () => askAlly(g, any(others, r), r() < 0.5 ? 'aid' : 'troops', rng), () => answerAlly(g, r() < 0.5),
+    () => answerOffer(g, r() < 0.5), () => (g.wars?.length ? backWar(g, 0, r() < 0.5 ? g.wars[0].a : g.wars[0].b) : g),
     () => (g.conflicts.length ? backSide(g, any(g.conflicts.map((c) => c.country), r), r() < 0.5 ? 'gov' : 'rebel') : g),
     () => meetContact(g, cid, rng), () => askEndorsement(g, cid), () => jointDeal(g, cid), () => feud(g, cid), () => faithOutreach(g, rng),
     () => executiveOrder(g, any(lawIds, r)), () => consultCoalition(g, rng), () => negotiateUnions(g, rng), () => royalOccasion(g, rng),

@@ -344,6 +344,15 @@ export function backSide(g: GameState, country: string, side: 'gov' | 'rebel'): 
   return log({ ...next, player: spend(p) }, `${p.name} sends $${PROXY_COST}bn in arms to the ${side === 'gov' ? 'government' : 'rebels'} in ${g.countries[country].name}.`);
 }
 
+/** True when nobody can safely invade this country: it has the bomb, or a nuclear superpower protects it. */
+export function nuclearShieldFor(countries: Record<string, Country>, g: GameState, id: string): boolean {
+  const o = countries[id];
+  if (!o) return false;
+  if (o.nuclear) return true;
+  const l = protector({ ...g, countries }, id);
+  return !!l && countries[l].nuclear && tierOf(countries[l]) === 'super';
+}
+
 /** Why you can't go to war with a country, or null. Nuclear powers can't be invaded. */
 export function nuclearShield(g: GameState, other: string): string | null {
   const o = g.countries[other];
@@ -435,6 +444,7 @@ export function answerAlly(g: GameState, accept: boolean): GameState {
   }
   const me = next.countries[p.countryId];
   next = { ...next, countries: { ...next.countries, [p.countryId]: { ...me, military: clamp(me.military - 4, 0, 100) } } };
+  if (call.warWith) next = { ...next, wars: (next.wars ?? []).map((w) => (w.a === call.from && w.b === call.warWith ? { ...w, score: w.score + 10 } : w.b === call.from && w.a === call.warWith ? { ...w, score: w.score - 10 } : w)) };
   if (call.conflict) next = { ...next, conflicts: next.conflicts.map((c) => (c.country === call.conflict ? { ...c, score: c.score + (c.govBacker === call.from || c.country === call.from ? 8 : -8) } : c)) };
   return log({ ...next, player: { ...p, popularity: clamp(p.popularity - 3, 0, 100), groups: { ...p.groups, students: clamp(p.groups.students - 3, 0, 100) } } }, `${p.name} sends troops to help ${a.name}. Some at home are uneasy.`);
 }
@@ -474,8 +484,11 @@ export function tickAllies(g: GameState, rng: Rng, lines: string[]): GameState {
   if (allies.length && rng() < 0.04 * Math.min(3, allies.length)) {
     const from = pick(allies, rng);
     const a = g.countries[from];
+    const aiWar = (g.wars ?? []).find((w) => w.a === from || w.b === from);
     const war = (g.conflicts ?? []).find((c) => c.country === from || c.govBacker === from);
-    const c: AllyCall = war
+    const c: AllyCall = aiWar
+      ? { from, kind: 'troops', reason: `${a.name} is at war with ${g.countries[aiWar.a === from ? aiWar.b : aiWar.a].name} and needs your soldiers.`, monthsLeft: 3, warWith: aiWar.a === from ? aiWar.b : aiWar.a }
+      : war
       ? { from, kind: 'troops', reason: war.country === from ? `Rebels threaten ${a.name}'s government.` : `${a.name} is backing the government in ${g.countries[war.country].name}'s civil war and wants your soldiers.`, monthsLeft: 3, conflict: war.country }
       : rng() < 0.6
         ? { from, kind: 'aid', reason: pick([`Floods have hit ${a.name}.`, `${a.name} faces a budget crisis.`, `An earthquake strikes ${a.name}.`, `${a.name} is short of food after a drought.`], rng), monthsLeft: 3 }

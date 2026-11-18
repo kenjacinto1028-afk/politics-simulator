@@ -10,7 +10,7 @@ import { TRAITS } from '../data/people';
 import { countryLabel } from '../data/local-names';
 import { armsBlocker, armsCost, inviteBlocker, nuclearShield, TIERS, tierOf } from '../sim/geo';
 import { BLOCS, RESOURCES } from '../data/geo';
-import { AllyCallCard, AlliesCard, BlocActions } from './WorldPower';
+import { AllyCallCard, AlliesCard, BlocActions, OfferCard } from './WorldPower';
 import { PolicyPanel, SpyRow } from './Society';
 
 const f1 = (n: number) => n.toFixed(1);
@@ -184,7 +184,7 @@ export function Diplomacy() {
               return (
                 <tr key={c.id}>
                   <td>{countryLabel(c)} <span className="badge">{TIERS[tierOf(c)].name}</span><br /><span className="muted small-text">{BLOCS[c.bloc].name} · army {Math.round(c.military)}{c.nuclear ? ' · nuclear' : ''} · exports {RESOURCES[c.resource].name.toLowerCase()}</span>{dealt && <span className="pos small-text"> trade deal</span>}{n.alliances.includes(c.id) && <span className="badge good">Ally</span>}</td>
-                  <td className="small-text">{c.leader.name}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}</span></td>
+                  <td className="small-text">{c.leader.name}{c.junta && <span className="badge warn">Military rule</span>}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}{c.decisions?.[0] && <><br />Latest: {c.decisions[0]}</>}</span></td>
                   <td className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</td>
                   <td>
                     <div className="row">
@@ -217,6 +217,7 @@ export function Nation({ part = 'all' }: { part?: 'all' | 'job' } = {}) {
   return (
     <>
       <AllyCallCard />
+      <OfferCard />
       <Economy />
       <BudgetPanel key={game.turn} nation={n} />
       <Parliament />
