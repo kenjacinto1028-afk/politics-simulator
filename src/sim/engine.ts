@@ -1,11 +1,12 @@
 import { seedCountries, type WorldSize } from '../data/countries';
 import type { Country, GameState } from './types';
-import type { Rng } from './rng';
+import { makeRng, type Rng } from './rng';
+import { tickPlayer } from './career';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function newGame(worldSize: WorldSize = 25): GameState {
-  return { turn: 0, year: 2026, month: 1, worldSize, player: null, countries: seedCountries(worldSize), log: ['The world awaits.'] };
+export function newGame(worldSize: WorldSize = 25, seed = 1): GameState {
+  return { turn: 0, seed, year: 2026, month: 1, worldSize, player: null, countries: seedCountries(worldSize), log: ['The world awaits.'] };
 }
 
 /** High-level monthly drift for any country. Detailed sim for the player nation comes later. */
@@ -24,5 +25,10 @@ export function advanceMonth(state: GameState, rng: Rng): GameState {
   for (const [id, c] of Object.entries(state.countries)) countries[id] = tickCountry(c, rng);
   const month = state.month === 12 ? 1 : state.month + 1;
   const year = state.month === 12 ? state.year + 1 : state.year;
-  return { ...state, turn: state.turn + 1, month, year, countries };
+  return tickPlayer({ ...state, turn: state.turn + 1, month, year, countries }, rng);
+}
+
+/** Deterministic RNG for a given game moment; `salt` separates independent rolls within a turn. */
+export function rngFor(state: GameState, salt = 0): Rng {
+  return makeRng((state.seed * 2654435761 + state.turn * 97 + salt * 7919) >>> 0);
 }

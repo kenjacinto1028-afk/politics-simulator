@@ -54,13 +54,65 @@ export interface Player {
   name: string;
   countryId: string;
   office: OfficeId | null;
-  popularity: number;   // 0..100
+  popularity: number;   // 0..100 — name recognition + favorability
   funds: number;        // campaign money, thousands
   age: number;
+  /** 0..100 — standing with the party machine (matters most in one-party states). */
+  loyalty: number;
+  /** Actions left this month (campaigning, governing). */
+  actionsLeft: number;
+  campaign: Campaign | null;
+  city: City | null;
+  /** Months until the current term ends. */
+  termMonthsLeft: number;
+  pendingEvent: PendingEvent | null;
+  /** Elections won/lost, for the career summary. */
+  record: { won: number; lost: number };
+}
+
+export interface Rival { name: string; party: string; popularity: number; funds: number }
+
+export interface Campaign {
+  office: OfficeId;
+  monthsLeft: number;
+  rival: Rival;
+  /** Your polling share 0..100 vs rival (shown to player, noisy). */
+  poll: number;
+  incumbent: boolean;
+}
+
+export type SpendKey = 'police' | 'infrastructure' | 'welfare' | 'culture';
+
+export interface City {
+  name: string;
+  population: number;          // thousands
+  taxRate: number;             // % local tax, 0..15
+  /** Share of budget by department, sums to 100. */
+  spending: Record<SpendKey, number>;
+  treasury: number;            // thousands
+  crime: number;               // 0..100 (lower is better)
+  services: number;            // 0..100 roads, transit, utilities
+  jobs: number;                // 0..100 local economy
+  happiness: number;           // 0..100
+  culture: number;             // 0..100 events, tourism draw
+}
+
+export interface Effects {
+  popularity?: number; funds?: number; loyalty?: number;
+  treasury?: number; crime?: number; services?: number; jobs?: number; happiness?: number; culture?: number;
+}
+
+export interface PendingEvent {
+  id: string;
+  title: string;
+  text: string;
+  choices: { label: string; effects: Effects; log: string }[];
 }
 
 export interface GameState {
   turn: number;        // 1 turn = 1 month
+  /** Base RNG seed; every random roll derives from seed + turn so saves replay identically. */
+  seed: number;
   worldSize: number;
   year: number;
   month: number;       // 1..12

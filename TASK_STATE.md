@@ -9,9 +9,9 @@
 - [x] Push to GitHub — origin/main
 
 ## Save/load + Mayor (branch feat/save-load-mayor)
-- [ ] Save/load: autosave, 3 slots, export/import JSON — src/sim/save.ts
-- [ ] Campaign + election for first office — src/sim/career.ts
-- [ ] Mayor: city sim, budget, events, re-election — src/sim/city.ts, src/data/events.ts
-- [ ] UI: campaign, city, event modal, save menu — src/ui/
-- [ ] Tests + build green
-- [ ] Push branch + open PR
+- [x] Save/load: autosave, 3 slots, export/import JSON — src/sim/save.ts, src/ui/SaveMenu.tsx
+- [x] Campaign + election for first office — src/sim/career.ts
+- [x] Mayor: city sim, budget, events, re-election — src/sim/city.ts, src/data/events.ts
+- [x] UI: campaign, city, event modal, save menu — src/ui/Game.tsx
+- [x] Tests + build green — 14 tests; balance ~60-65% first-race win for active play
+- [x] Push branch + open PR

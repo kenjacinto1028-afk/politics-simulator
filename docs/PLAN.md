@@ -16,9 +16,9 @@
 | # | Feature | Model |
 |---|---|---|
 | 1 | Scaffold, types, seed data, monthly tick, world table | Sonnet ✅ |
-| 2 | Save/load + new-game options (seed, start year) | Sonnet |
-| 3 | Mayor: city budget, approval, local events | Opus (design) → Sonnet (UI) |
-| 4 | Elections & campaigns (polls, funds, debates, endorsements) | Opus |
+| 2 | Save/load (autosave, 3 slots, export/import) | Sonnet ✅ |
+| 3 | Mayor: city budget, approval, local events | Opus (design) → Sonnet (UI) ✅ |
+| 4 | Elections & campaigns (polls, funds, debates, endorsements) | Opus (basic version ✅; endorsements, issues, ads targeting next) |
 | 5 | Parties & factions, legislature votes | Opus |
 | 6 | Promotions up the ladder per political system | Sonnet |
 | 7 | National detail: economy, population, migration, tourism, culture | Opus |
