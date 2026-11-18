@@ -2,10 +2,11 @@ import type { GameState } from './types';
 import { newCouncil } from './city';
 import { makeRng } from './rng';
 import { newRegion } from './governor';
+import { newSeat } from './legislator';
 import { kindOf } from './offices';
 import { SYSTEMS } from '../data/systems';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const SLOTS = ['autosave', 'slot1', 'slot2', 'slot3'] as const;
 export type SlotId = (typeof SLOTS)[number];
 
@@ -32,7 +33,16 @@ export function deserialize(text: string): GameState {
   let out = g;
   if (file.version < 2) out = migrateV1(out);
   if (file.version < 3) out = migrateV2(out);
+  if (file.version < 4) out = migrateV3(out);
   return out;
+}
+
+/** v3 saves predate lawmaker gameplay. A lawmaker from then gets a fresh seat. */
+function migrateV3(g: GameState): GameState {
+  const p = g.player;
+  if (!p) return g;
+  const seat = p.seat ?? (p.office && kindOf(p.office) === 'legislative' ? newSeat(p.office, makeRng(g.seed + 2)) : null);
+  return { ...g, player: { ...p, seat } };
 }
 
 /** v2 saves predate Governor gameplay, term counting and event memory. */

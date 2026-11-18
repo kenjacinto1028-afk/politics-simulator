@@ -6,6 +6,8 @@ import { GROUP_IDS, groupApproval, startingGroups, tickBuilds, tickCouncil, tick
 import { newRegion, regionGroupTargets, tickRegion } from './governor';
 import { kindOf } from './offices';
 import { STATE_EVENTS } from '../data/state-content';
+import { LEGISLATIVE_EVENTS } from '../data/legislature-content';
+import { newSeat, tickSeat } from './legislator';
 import type { Rng } from './rng';
 import type { AdvancementMode, Campaign, City, Effects, GameState, OfficeId, Player, Rival, SpendKey } from './types';
 
@@ -63,7 +65,7 @@ const modeOf = (g: GameState) => SYSTEMS[g.countries[g.player!.countryId].system
 function scores(g: GameState, p: Player, c: Campaign) {
   const sys = SYSTEMS[g.countries[p.countryId].systemId];
   const r = c.rival;
-  const incumbency = c.incumbent ? (officeHappiness(p) - 50) * 0.4 + 3 : 0;
+  const incumbency = c.incumbent ? clamp((officeHappiness(p) - 50) * 0.4 + 3, -10, 10) : 0;
   const groupsEdge = clamp((groupApproval(p) - 50) * 0.8, -12, 12);
   let you: number, them: number;
   if (sys.advancement === 'appointment') {
@@ -92,12 +94,17 @@ function log(g: GameState, line: string): GameState {
 /** How happy the people you govern are: your state if Governor, otherwise your city. */
 export function officeHappiness(p: Player): number {
   if (kindOf(p.office) === 'regional' && p.region) return p.region.happiness;
+  if (kindOf(p.office) === 'legislative') return groupApproval(p);
   return p.city?.happiness ?? 50;
 }
 
 /** Rival strength. Re-elections scale with how you're doing; races above the first rung draw a stronger field. */
 function rivalStrength(g: GameState, p: Player, office: OfficeId, incumbent: boolean): number {
-  if (incumbent) return 15 + p.popularity * 0.58 + (60 - officeHappiness(p)) * 0.3;
+  if (incumbent) {
+    // Vote against your party more often than with it, and it backs a strong challenger.
+    const partyRevenge = p.seat && p.seat.votesAgainstParty > p.seat.votesWithParty ? 10 : 0;
+    return 15 + p.popularity * 0.58 + (60 - officeHappiness(p)) * 0.3 + partyRevenge;
+  }
   const ladder = SYSTEMS[g.countries[p.countryId].systemId].ladder;
   if (ladder.indexOf(office) <= 0) return 16;
   return SYSTEMS[g.countries[p.countryId].systemId].advancement === 'election' ? 27 + p.popularity * 0.55 : 68;
@@ -115,7 +122,7 @@ export function startCareer(g: GameState, name: string, countryId: string, rng: 
     name, countryId, office: null, popularity: 12, funds: 50, age: 30, loyalty: 20, actionsLeft: ACTIONS_PER_MONTH,
     campaign: null, city, termMonthsLeft: 0, pendingEvent: null, record: { won: 0, lost: 0 },
     groups: startingGroups(rng), monthsInOffice: 0, recentEvents: [], lastEventTurn: -99,
-    region: null, termsInOffice: 0, highestRung: -1,
+    region: null, seat: null, termsInOffice: 0, highestRung: -1,
   };
   player.campaign = makeCampaign(g, player, sys.ladder[0], false, rng);
   const verb = sys.advancement === 'election' ? 'announces a run' : sys.advancement === 'shares' ? 'seeks a board seat' : 'seeks party nomination';
@@ -177,7 +184,7 @@ export function doAction(g: GameState, action: CampaignAction, rng: Rng): GameSt
   let msg = '';
   switch (action) {
     case 'rally': e = { ...e, popularity: dim(p.popularity, 2, 4) }; msg = 'holds a packed rally'; break;
-    case 'fundraise': e = { funds: r(15, 30), popularity: -r(0, 1) }; msg = 'hosts a fundraising dinner'; break;
+    case 'fundraise': e = { funds: Math.round(r(15, 30) * (p.seat?.committee === 'finance' && p.office ? 1.5 : 1)), popularity: -r(0, 1) }; msg = 'hosts a fundraising dinner'; break;
     case 'ads': e = { ...e, popularity: dim(p.popularity, 3, 6) }; msg = 'launches an ad blitz'; break;
     case 'door-knock': e = { popularity: dim(p.popularity, 1, 2) }; msg = 'knocks on doors all weekend'; break;
     case 'party-work': e = { loyalty: dim(p.loyalty, 3, 6) }; msg = 'works the party machine'; break;
@@ -229,6 +236,7 @@ function resolveElection(g: GameState, rng: Rng): GameState {
       highestRung: Math.max(p.highestRung, rung), popularity: clamp(p.popularity + 5, 0, 100),
     };
     if (newJob && kindOf(c.office) === 'regional') player = { ...player, region: newRegion(p.city!.name, rng) };
+    if (newJob && kindOf(c.office) === 'legislative') player = { ...player, seat: newSeat(c.office, rng) };
     const where = kindOf(c.office) === 'local' ? ` of ${p.city!.name}` : kindOf(c.office) === 'regional' ? ` of ${player.region!.name}` : '';
     return log({ ...g, player }, `${p.name} ${c.incumbent ? 'is re-elected' : 'becomes'} ${office}${where} with ${how}.`);
   }
@@ -251,7 +259,8 @@ export function runForHigher(g: GameState, office: OfficeId, rng: Rng): GameStat
 }
 
 function eventPool(p: Player) {
-  return kindOf(p.office) === 'regional' ? STATE_EVENTS : CITY_EVENTS;
+  const kind = kindOf(p.office);
+  return kind === 'regional' ? STATE_EVENTS : kind === 'legislative' ? LEGISLATIVE_EVENTS : CITY_EVENTS;
 }
 
 /** Player-side monthly update; runs after the world tick. */
@@ -264,7 +273,11 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
   const done: string[] = [];
   const kind = kindOf(p.office);
 
-  if (kind === 'regional' && p.region) {
+  if (kind === 'legislative' && p.seat) {
+    const t = tickSeat(p, rng);
+    p = t.player;
+    done.push(...t.lines);
+  } else if (kind === 'regional' && p.region) {
     const region = tickRegion(p.region, country, p.popularity, rng);
     p = { ...p, region, popularity: clamp(p.popularity + (region.happiness - p.popularity) * 0.15, 0, 100) };
   } else if (p.office && p.city) {
@@ -279,7 +292,8 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
     p = { ...p, popularity: clamp(p.popularity - 0.3, 0, 100) };
   }
   if (p.office) p = { ...p, termMonthsLeft: p.termMonthsLeft - 1, monthsInOffice: p.monthsInOffice + 1 };
-  p = tickGroups(p, kind === 'regional' && p.region ? regionGroupTargets(p) : undefined);
+  // Lawmakers' district mood is handled in tickSeat.
+  if (kind !== 'legislative') p = tickGroups(p, kind === 'regional' && p.region ? regionGroupTargets(p) : undefined);
   let next: GameState = { ...g, player: p };
   for (const line of done) next = log(next, line);
 

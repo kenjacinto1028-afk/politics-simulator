@@ -65,6 +65,8 @@ export interface Player {
   city: City | null;
   /** Your state/province once you are Governor. */
   region: Region | null;
+  /** Your seat in a legislature once you are a lawmaker. */
+  seat: Seat | null;
   /** Months until the current term ends. */
   termMonthsLeft: number;
   pendingEvent: PendingEvent | null;
@@ -116,6 +118,28 @@ export interface StateCity {
   /** 0..100 — how well this city's mayor works with you. */
   mayorRelationship: number;
   home: boolean;
+}
+
+export interface Seat {
+  /** Chamber name, e.g. "Senate". */
+  chamber: string;
+  seats: number;
+  /** Seats your party holds. */
+  yourParty: number;
+  committee: 'finance' | 'health' | 'education' | 'infrastructure' | 'security' | null;
+  /** 0..100 — clout in the chamber. Grows with time served and laws passed. */
+  influence: number;
+  /** 0..100 — how well you work with the other party. */
+  acrossAisle: number;
+  /** Total public money you've won for your district, thousands. */
+  districtFunding: number;
+  pendingVote: { billId: string; partyWantsYes: boolean } | null;
+  recentVotes: string[];
+  voteCooldown: number;
+  sponsoring: { billId: string; stage: 'cosponsors' | 'committee' | 'floor'; cosponsors: number; months: number } | null;
+  passed: string[];
+  votesWithParty: number;
+  votesAgainstParty: number;
 }
 
 export interface Region {

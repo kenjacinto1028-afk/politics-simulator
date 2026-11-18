@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { advanceMonth, newGame, rngFor } from './sim/engine';
 import { doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
 import { courtLegislature, decideBill, grantCity, proposeStateLaw, repealStateLaw, setStateBudget, stateAddress, visitCity } from './sim/governor';
+import { castVote, chooseCommittee, crossAisle, dropBill, floorSpeech, gatherCosponsors, secureFunding, startSponsoring } from './sim/legislator';
+import type { CommitteeId } from './data/legislature-content';
 import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
 import type { GameState, GroupId, OfficeId, Region, SpendKey } from './sim/types';
@@ -32,6 +34,14 @@ interface Store {
   repealStateLaw: (id: string) => void;
   decideBill: (sign: boolean) => void;
   setStateBudget: (taxRate: number, budget: Region['budget']) => void;
+  castVote: (yes: boolean) => void;
+  chooseCommittee: (id: CommitteeId) => void;
+  floorSpeech: () => void;
+  crossAisle: () => void;
+  secureFunding: () => void;
+  startSponsoring: (id: string) => void;
+  gatherCosponsors: () => void;
+  dropBill: () => void;
   meetGroup: (g: GroupId) => void;
   lobby: (memberIndex: number) => void;
   cutDeal: (memberIndex: number) => void;
@@ -55,7 +65,7 @@ export const useGame = create<Store>((set, get) => ({
   startCareer: (name, countryId) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99)) })),
   nextTurn: () => {
     const g = get().game;
-    if (g.player?.pendingEvent || g.player?.region?.pendingBill) return;
+    if (g.player?.pendingEvent || g.player?.region?.pendingBill || g.player?.seat?.pendingVote) return;
     const game = advanceMonth(g, rngFor(g));
     if (kv) saveTo(kv, 'autosave', game);
     set((s) => ({ game, saveRev: s.saveRev + 1 }));
@@ -72,6 +82,14 @@ export const useGame = create<Store>((set, get) => ({
   repealStateLaw: (id) => set((s) => ({ game: repealStateLaw(s.game, id) })),
   decideBill: (sign) => set((s) => ({ game: decideBill(s.game, sign) })),
   setStateBudget: (t, b) => set((s) => ({ game: setStateBudget(s.game, t, b) })),
+  castVote: (yes) => set((s) => ({ game: castVote(s.game, yes) })),
+  chooseCommittee: (id) => set((s) => ({ game: chooseCommittee(s.game, id) })),
+  floorSpeech: () => set((s) => ({ game: floorSpeech(s.game, actionRng(s.game)) })),
+  crossAisle: () => set((s) => ({ game: crossAisle(s.game, actionRng(s.game)) })),
+  secureFunding: () => set((s) => ({ game: secureFunding(s.game, actionRng(s.game)) })),
+  startSponsoring: (id) => set((s) => ({ game: startSponsoring(s.game, id) })),
+  gatherCosponsors: () => set((s) => ({ game: gatherCosponsors(s.game, actionRng(s.game)) })),
+  dropBill: () => set((s) => ({ game: dropBill(s.game) })),
   meetGroup: (grp) => set((s) => ({ game: meetGroup(s.game, grp, actionRng(s.game)) })),
   lobby: (i) => set((s) => ({ game: lobbyMember(s.game, i, actionRng(s.game)) })),
   cutDeal: (i) => set((s) => ({ game: cutDeal(s.game, i) })),
