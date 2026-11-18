@@ -3,7 +3,7 @@ import { GROUPS } from '../data/city-content';
 import { SYSTEMS } from '../data/systems';
 import { clamp } from './city';
 import { kindOf } from './offices';
-import { has, makeCharacter } from './people';
+import { has } from './people';
 import { parliamentShift } from './systems';
 import { nuclearShield, protector, tickAllies, warPower } from './geo';
 import { policySpending, societyEffects } from './society';
@@ -199,13 +199,8 @@ export function tickWorld(g: GameState, rng: Rng): GameState {
       relations[foe] = clamp(relations[foe] - 15, -100, 100);
       lines.push(`${c.name} and ${countries[foe].name} clash at the border. ${c.leader.name} blames ${countries[foe].name}.`);
     }
-    let leader = c.leader;
-    if (c.leader.approval < 35 && rng() < 0.03) {
-      const ch = makeCharacter(c, rng);
-      leader = { ...ch, party: 'New Movement', approval: 55 };
-      lines.push(`${c.name}: ${c.leader.name} is out. ${leader.name} takes power.`);
-    }
-    countries[id] = { ...c, relations, leader };
+    // Leaders now change through elections, congresses and coups (see ai.ts).
+    countries[id] = { ...c, relations };
   }
   let next: GameState = { ...g, countries };
   for (const l of lines) next = log(next, l);

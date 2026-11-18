@@ -13,6 +13,7 @@ import { foreignAid, formAlliance, hostSummit } from './sim/nation';
 import { answerAlly, armsDeal, askAlly, backSide, inviteToBloc, joinBloc, leaveBloc } from './sim/geo';
 import type { BlocId } from './data/geo';
 import { setPolicy, spyOp } from './sim/society';
+import { answerOffer, backWar } from './sim/ai';
 import { addRun, loadRuns, retireNow, summarize } from './sim/history';
 import type { RunSummary } from './sim/types';
 import type { PolicyId } from './data/society';
@@ -62,6 +63,8 @@ interface Store {
   backSide: (countryId: string, side: 'gov' | 'rebel') => void;
   nextTurn: () => void;
   retireNow: () => void;
+  answerOffer: (accept: boolean) => void;
+  backWar: (index: number, side: string) => void;
   runs: RunSummary[];
   act: (a: CampaignAction) => void;
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
@@ -161,6 +164,8 @@ export const useGame = create<Store>((set, get) => ({
     set((s) => ({ game, runs: game.player?.retired ? addRun(kv, summarize(game)) : s.runs, saveRev: s.saveRev + 1 }));
   },
   runs: loadRuns(kv),
+  answerOffer: (accept) => set((s) => ({ game: answerOffer(s.game, accept) })),
+  backWar: (i, side) => set((s) => ({ game: backWar(s.game, i, side) })),
   act: (a) => set((s) => ({ game: doAction(s.game, a, actionRng(s.game)) })),
   setBudget: (t, sp) => set((s) => ({ game: setBudget(s.game, t, sp) })),
   resolveEvent: (i) => set((s) => ({ game: resolveEvent(s.game, i) })),

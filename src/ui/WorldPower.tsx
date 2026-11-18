@@ -32,6 +32,8 @@ export function WorldPower() {
           return <li key={b}><b>{BLOCS[b].name}</b> · {blocMembers(game, b).length} {blocMembers(game, b).length === 1 ? 'country' : 'countries'}{l && <> · led by {game.countries[l].name}</>}<br /><span className="muted small-text">{BLOCS[b].blurb}</span></li>;
         })}
       </ul>
+      <h4>Wars</h4>
+      <AIWars leading={leading} blocked={blocked} />
       <h4>Proxy wars</h4>
       {game.conflicts.length === 0 ? <p className="muted small-text">No civil wars right now.</p> : (
         <ul className="news">
@@ -85,6 +87,58 @@ function JoinButton({ bloc, blocked, onJoin }: { bloc: BlocId; blocked: boolean;
   return <button className="small" disabled={blocked || !!why} title={why ?? ''} onClick={onJoin}>Join {BLOCS[bloc].name}{why ? ` (${why})` : ''}</button>;
 }
 
+
+function AIWars({ leading, blocked }: { leading: boolean; blocked: boolean }) {
+  const { game, backWar } = useGame();
+  const wars = game.wars ?? [];
+  if (!wars.length) return <p className="muted small-text">No wars between countries right now.</p>;
+  return (
+    <ul className="news">
+      {wars.map((w, i) => {
+        const a = game.countries[w.a], b = game.countries[w.b];
+        const lead = w.score > 8 ? `${a.name} winning` : w.score < -8 ? `${b.name} winning` : 'Stalemate';
+        return (
+          <li key={`${w.a}-${w.b}`}>
+            <b>{a.name} vs {b.name}</b> · month {w.months} · {lead}
+            {w.playerSide && <><br /><span className="small-text">You armed {game.countries[w.playerSide].name}.</span></>}
+            {leading && !w.playerSide && w.a !== game.player!.countryId && w.b !== game.player!.countryId && (
+              <div className="row">
+                <button className="small" disabled={blocked} title="$5bn in arms" onClick={() => backWar(i, w.a)}>Arm {a.name} ($5bn)</button>
+                <button className="small" disabled={blocked} title="$5bn in arms" onClick={() => backWar(i, w.b)}>Arm {b.name} ($5bn)</button>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** An AI country's offer or demand. Shown on the leader's main screen. */
+export function OfferCard() {
+  const { game, answerOffer } = useGame();
+  const p = game.player!;
+  const o = p.nation?.offer;
+  if (!o) return null;
+  const c = game.countries[o.from];
+  const threat = o.kind === 'tribute' || o.kind === 'cut-trade';
+  const hint = threat
+    ? 'Giving in costs popularity but calms them. Refusing looks strong at home, but they get angrier and big powers may sanction you.'
+    : o.kind === 'trade' ? 'A trade deal brings in their exports and pleases business.'
+      : o.kind === 'alliance' ? 'An ally helps you in wars and may ask for your help in return. Their enemies will like you less.'
+        : 'Joining a bloc brings protection but angers the rival bloc.';
+  return (
+    <div className="panel">
+      <h3>{threat ? `Demand from ${c.name}` : `Offer from ${c.name}`}</h3>
+      <p>{o.text}</p>
+      <p className="muted small-text">{hint} {o.monthsLeft} month{o.monthsLeft === 1 ? '' : 's'} to answer; no answer counts as a no.</p>
+      <div className="row">
+        <button className="small" disabled={!!p.pendingEvent} onClick={() => answerOffer(true)}>{threat ? 'Give in' : 'Accept'}</button>
+        <button className="small secondary" disabled={!!p.pendingEvent} onClick={() => answerOffer(false)}>{threat ? 'Refuse' : 'Decline'}</button>
+      </div>
+    </div>
+  );
+}
 
 /** An ally is asking for help. Shown on the leader's main screen. */
 export function AllyCallCard() {

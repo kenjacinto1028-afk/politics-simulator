@@ -95,3 +95,11 @@
 - [x] History: key moments timeline + yearly snapshots, recorded each month in advanceMonth
 - [x] UI: end report card with chart, Career so far (More tab), Hall of Fame on main menu (browser storage, top 30)
 - [x] Tested — 105 tests, browser retire flow desktop + phone
+
+## AI countries act on their own (branch feat/ai-world)
+- [x] Yearly AI policy decisions by traits, focus and problems — src/sim/ai.ts
+- [x] AI elections, congresses, board ousters, coups, juntas — src/sim/ai.ts
+- [x] AI pacts and wars, player can arm a side — src/sim/ai.ts
+- [x] Offers and demands to the player, with expiry — src/sim/ai.ts, src/ui/WorldPower.tsx
+- [x] Tests (118), fuzz, 43-save browser check
+- [x] PR, merge, play link
