@@ -38,7 +38,7 @@
 
 ## Cabinet + Head of state (branch feat/save-load-mayor)
 - [x] Engines drafted — src/sim/cabinet.ts, src/sim/nation.ts, src/data/cabinet-content.ts, nation-content.ts
-- [ ] Wire into career/engine/save/store, PLAYABLE_KINDS
+- [x] Wire into career/engine/save/store, PLAYABLE_KINDS — career.ts, engine.ts, save.ts (v5), store.ts
 - [ ] Tests + balance sims
 - [ ] Screens (Sonnet): Cabinet.tsx, Nation.tsx, funds tracker
 - [ ] Bug hunt 1: robot careers in all 8 systems

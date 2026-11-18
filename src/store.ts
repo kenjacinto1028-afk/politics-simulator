@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { advanceMonth, newGame, rngFor } from './sim/engine';
-import { doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
+import { blockingPrompt, doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
 import { courtLegislature, decideBill, grantCity, proposeStateLaw, repealStateLaw, setStateBudget, stateAddress, visitCity } from './sim/governor';
 import { castVote, chooseCommittee, crossAisle, dropBill, floorSpeech, gatherCosponsors, secureFunding, startSponsoring } from './sim/legislator';
 import type { CommitteeId } from './data/legislature-content';
@@ -84,7 +84,7 @@ export const useGame = create<Store>((set, get) => ({
   startCareer: (name, countryId) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99)) })),
   nextTurn: () => {
     const g = get().game;
-    if (g.player?.retired || g.player?.pendingEvent || g.player?.region?.pendingBill || g.player?.seat?.pendingVote || g.player?.ministry?.pendingAsk) return;
+    if (blockingPrompt(g.player)) return;
     const game = advanceMonth(g, rngFor(g));
     if (kv) saveTo(kv, 'autosave', game);
     set((s) => ({ game, saveRev: s.saveRev + 1 }));

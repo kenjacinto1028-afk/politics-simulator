@@ -3,6 +3,7 @@ import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
 import { ACTION_INFO, STANDING_LABEL, availableActions, comebackOptions } from '../sim/career';
 import { RESERVE_RATE, cityRevenue } from '../sim/city';
+import { deficit } from '../sim/nation';
 import { regionRevenue } from '../sim/governor';
 import type { City, SpendKey } from '../sim/types';
 import { campaignTip } from '../sim/mayor';
@@ -16,6 +17,9 @@ import { HigherOffice } from './HigherOffice';
 import { kindOf } from '../sim/offices';
 import { Legislator, VoteModal } from './Legislator';
 import { k, moneyChange, treasuryOf } from './money';
+import { Cabinet, AskModal } from './Cabinet';
+import { Nation } from './Nation';
+import { Retired } from './Retired';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 
 const n0 = (n: number) => Math.round(n).toString();
@@ -57,7 +61,12 @@ export function Game() {
   const bill = !!p.region?.pendingBill;
   const lawmaker = kind === 'legislative' && !!p.seat;
   const voting = !!p.seat?.pendingVote;
-  function kpiMoney(): { label: string; value: number; perMonth?: number } | null {
+  const minister = kind === 'cabinet' && !!p.ministry;
+  const asking = !!p.ministry?.pendingAsk;
+  const leader = kind === 'head' && !!p.nation;
+  function kpiMoney(): { label: string; value: number; perMonth?: number; bn?: boolean; debt?: boolean } | null {
+    if (minister) return { label: 'Ministry budget', value: p.ministry!.budget, bn: true };
+    if (leader) return { label: 'National debt (% of GDP)', value: home.economy.debtToGdp, debt: true };
     if (lawmaker) return { label: 'District funding won', value: p.seat!.districtFunding };
     if (governor) return { label: 'State treasury', value: p.region!.treasury, perMonth: regionRevenue(p.region!) * RESERVE_RATE };
     if (kind === 'local' && city && p.office) return { label: 'City treasury', value: city.treasury, perMonth: cityRevenue(city) * RESERVE_RATE };
@@ -67,6 +76,8 @@ export function Game() {
   const money = kpiMoney();
   const where = governor ? ` of ${p.region!.name}` : kindOf(p.office) === 'legislative' && p.seat ? `, ${p.seat.chamber}` : kindOf(p.office) === 'local' ? ` of ${city?.name}` : '';
   const title = p.office ? `${OFFICE_NAMES[p.office]}${where}` : c ? `Candidate for ${OFFICE_NAMES[c.office]}` : 'Out of office';
+
+  if (p.retired) return <Retired />;
 
   return (
     <div className="grid">
@@ -82,12 +93,12 @@ export function Game() {
         <div className="kpis">
           <div><b>{n0(p.popularity)}</b><span>Popularity</span></div>
           <div><b>${n0(p.funds)}k</b><span>Campaign funds</span></div>
-          {money && <div><b className={money.value < 0 ? 'neg' : ''}>{k(money.value)}</b><span>{money.label}{money.perMonth !== undefined && ` (+${k(money.perMonth)}/mo)`}</span></div>}
+          {money && <div><b className={money.value < 0 ? 'neg' : ''}>{money.bn ? `$${money.value.toFixed(1)}bn` : money.debt ? `${Math.round(money.value)}%` : k(money.value)}</b><span>{money.label}{money.debt && p.nation && ` · yearly ${deficit(p.nation) > 0 ? 'deficit' : 'surplus'} ${Math.abs(deficit(p.nation)).toFixed(1)}%`}{money.perMonth !== undefined && ` (+${k(money.perMonth)}/mo)`}</span></div>}
           <div><b>{n0(p.loyalty)}</b><span>{STANDING_LABEL[sys.advancement]}</span></div>
           <div><b>{p.actionsLeft}</b><span>Actions</span></div>
         </div>
         <div className="row">
-          <button onClick={nextTurn} disabled={!!p.pendingEvent || bill || voting}>Next month →</button>
+          <button onClick={nextTurn} disabled={!!p.pendingEvent || bill || voting || asking}>Next month →</button>
           <button className="secondary small" onClick={quitToMenu}>Main menu</button>
         </div>
       </div>
@@ -122,7 +133,7 @@ export function Game() {
             const info = ACTION_INFO[a];
             const locked = a === 'debate' && (!c || c.monthsLeft > 2);
             return (
-              <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent || bill || voting} onClick={() => act(a)}>
+              <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent || bill || voting || asking} onClick={() => act(a)}>
                 {info.label}<small>{info.hint}{info.cost ? ` · $${info.cost}k` : ''}</small>
               </button>
             );
@@ -142,8 +153,10 @@ export function Game() {
       )}
 
       {lawmaker && <Legislator />}
+      {minister && <Cabinet />}
+      {leader && <Nation />}
 
-      {!governor && !lawmaker && city && (
+      {!governor && !lawmaker && !minister && !leader && city && (
         <div className="panel">
           <h3>{city.name} <span className="muted">pop. {n0(city.population)}k</span></h3>
           <div className="cols">
@@ -203,13 +216,13 @@ export function Game() {
             )}
             <div className="actions">
               {p.pendingEvent.choices.map((ch, i) => {
-                const m = moneyChange(p, ch.effects);
+                const m = moneyChange(p, ch.effects, home);
                 return <button key={i} className="action" onClick={() => resolveEvent(i)}>{ch.label}{m.map((t) => <small key={t} className="money">{t}</small>)}</button>;
               })}
             </div>
           </div>
         </div>
-      ) : governor && bill ? <BillModal /> : lawmaker && voting ? <VoteModal /> : null}
+      ) : governor && bill ? <BillModal /> : lawmaker && voting ? <VoteModal /> : minister && asking ? <AskModal /> : null}
     </div>
   );
 }

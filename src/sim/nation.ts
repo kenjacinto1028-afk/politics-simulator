@@ -53,7 +53,9 @@ export function nationalMood(c: Country, n: Nation): number {
   const e = c.economy;
   const pr = n.priorities;
   return clamp(50 + (e.growth - 2) * 5 - (e.unemployment - 6) * 3 - (e.inflation - 3) * 2.5 + (pr.health - 20) * 0.3 + (pr.welfare - 20) * 0.3
-    - (n.taxRate - 30) * 0.5 - (n.war && n.war.months > 3 ? 8 : 0), 0, 100);
+    - (n.taxRate - 30) * 0.5 - (n.war && n.war.months > 3 ? 8 : 0)
+    // Voters notice runaway borrowing.
+    - Math.max(0, deficit(n) - 3) * 1.5 - Math.max(0, e.debtToGdp - 100) * 0.1, 0, 100);
 }
 
 export function nationGroupTargets(c: Country, n: Nation): Record<GroupId, number> {
@@ -132,6 +134,8 @@ export function tickNation(g: GameState, rng: Rng): { game: GameState; lines: st
   const groups = { ...p.groups };
   for (const k of GROUP_IDS) groups[k] = clamp(groups[k] + (targets[k] - groups[k]) * 0.06, 0, 100);
   p = { ...p, groups, popularity: clamp(p.popularity + (mood - p.popularity) * 0.1, 0, 100) };
+  // Without elections, power rests on the party or board: their backing fades unless tended.
+  if (SYSTEMS[country.systemId].advancement !== 'election') p = { ...p, loyalty: clamp(p.loyalty - 0.6, 0, 100) };
   n = { ...n, parliament: { ...n.parliament, goodwill: clamp(approach(n.parliament.goodwill, 50 + (p.popularity - 50) * 0.3, 0.05), 0, 100) }, legacy: n.legacy + (p.popularity + country.stability) / 200 };
   country = { ...country, leader: { name: p.name, party: 'Your party', approval: p.popularity } };
   countries[p.countryId] = country;

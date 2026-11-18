@@ -20,6 +20,8 @@ export const CAMPAIGN_MONTHS = CAMPAIGN_MONTHS_CONST;
 export const EVENT_CHANCE = 0.35;
 export const EVENT_GAP = 2;
 export const EVENT_MEMORY = 8;
+/** Every career ends eventually. */
+export const RETIRE_AGE = 75;
 const pick = <T,>(arr: readonly T[], rng: Rng) => arr[Math.floor(rng() * arr.length)];
 
 export type CampaignAction = 'rally' | 'fundraise' | 'ads' | 'door-knock' | 'debate' | 'party-work' | 'buy-shares' | 'town-hall';
@@ -283,11 +285,49 @@ function atTop(g: GameState, p: Player): boolean {
 
 /** Cabinet members keep their job at the end of a term if the leader still trusts them this much. */
 export const REAPPOINT_AT = 40;
+/** Leaders in one-party and corporate states aren't voted out: the party or board reconfirms them if your standing holds. */
+export const RECONFIRM_LOYALTY = 30;
+
+/** Jobs you keep by someone's say-so rather than an election. */
+export function isAppointed(g: GameState, p: Player): boolean {
+  const kind = kindOf(p.office);
+  return kind === 'cabinet' || (kind === 'head' && SYSTEMS[g.countries[p.countryId].systemId].advancement !== 'election');
+}
+
+/** Whether an appointed job is renewed at term end, and what it takes. */
+export function keepsAppointment(g: GameState, p: Player): { ok: boolean; need: string } {
+  if (kindOf(p.office) === 'cabinet') return { ok: (p.ministry?.boss ?? 0) >= REAPPOINT_AT, need: `the leader's trust at ${REAPPOINT_AT}+` };
+  const who = SYSTEMS[g.countries[p.countryId].systemId].advancement === 'shares' ? 'board' : 'party';
+  return { ok: p.loyalty >= RECONFIRM_LOYALTY, need: `${who} standing at ${RECONFIRM_LOYALTY}+` };
+}
 
 function eventPool(p: Player) {
   const kind = kindOf(p.office);
   if (kind === 'cabinet' || kind === 'head') return NATIONAL_EVENTS;
   return kind === 'regional' ? STATE_EVENTS : kind === 'legislative' ? LEGISLATIVE_EVENTS : CITY_EVENTS;
+}
+
+/** Drop the desk of a job you no longer hold, so its leftover prompts can't block the game. */
+export function clearOldJobs(p: Player): Player {
+  const kind = kindOf(p.office);
+  return {
+    ...p,
+    region: kind === 'regional' ? p.region : null,
+    seat: kind === 'legislative' ? p.seat : null,
+    ministry: kind === 'cabinet' ? p.ministry : null,
+  };
+}
+
+/** What must be answered before the month can end, if anything. */
+export function blockingPrompt(p: Player | null): 'event' | 'bill' | 'vote' | 'ask' | 'retired' | null {
+  if (!p) return null;
+  if (p.retired) return 'retired';
+  if (p.pendingEvent) return 'event';
+  const kind = kindOf(p.office);
+  if (kind === 'regional' && p.region?.pendingBill) return 'bill';
+  if (kind === 'legislative' && p.seat?.pendingVote) return 'vote';
+  if (kind === 'cabinet' && p.ministry?.pendingAsk) return 'ask';
+  return null;
 }
 
 const nextUp = (g: GameState) => {
@@ -298,11 +338,19 @@ const nextUp = (g: GameState) => {
 
 /** Player-side monthly update; runs after the world tick. */
 export function tickPlayer(g: GameState, rng: Rng): GameState {
+  const out = tickPlayerInner(g, rng);
+  return out.player ? { ...out, player: clearOldJobs(out.player) } : out;
+}
+
+function tickPlayerInner(g: GameState, rng: Rng): GameState {
   let p = g.player;
   if (!p || p.retired) return g;
   const country = g.countries[p.countryId];
   const sys = SYSTEMS[country.systemId];
   p = { ...p, actionsLeft: ACTIONS_PER_MONTH, age: g.month === 1 ? p.age + 1 : p.age };
+  if (p.age >= RETIRE_AGE) {
+    return log({ ...g, player: { ...p, office: null, campaign: null, retired: true } }, `${p.name} retires from public life at ${p.age}${p.office ? ` after serving as ${OFFICE_NAMES[p.office]}` : ''}.`);
+  }
   const done: string[] = [];
   const kind = kindOf(p.office);
 
@@ -345,26 +393,29 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
   for (const line of done) next = log(next, line);
 
   const termLimited = sys.termLimit !== null && p.termsInOffice >= sys.termLimit;
+  const appointed = !!p.office && isAppointed(next, p);
   if (p.campaign) {
     const rival = { ...p.campaign.rival, popularity: clamp(p.campaign.rival.popularity + rng() * 2.5, 0, 95), funds: p.campaign.rival.funds + Math.round(rng() * 15) };
     const campaign = { ...p.campaign, rival, monthsLeft: p.campaign.monthsLeft - 1 };
     p = { ...p, campaign: { ...campaign, poll: pollShare(next, p, campaign, rng) } };
     next = { ...next, player: p };
     if (campaign.monthsLeft <= 0) next = resolveElection(next, rng);
-  } else if (p.office && p.termMonthsLeft <= 0 && kind === 'cabinet' && !termLimited && (p.ministry?.boss ?? 0) >= REAPPOINT_AT) {
-    // Cabinet jobs aren't elected: the leader keeps you on if they still trust you.
-    next = log({ ...next, player: { ...p, termMonthsLeft: sys.termYears * 12, termsInOffice: p.termsInOffice + 1 } }, `${country.leader.name} keeps ${p.name} on as ${OFFICE_NAMES[p.office]} for another term.`);
+  } else if (p.office && p.termMonthsLeft <= 0 && appointed && !termLimited && keepsAppointment(next, p).ok) {
+    // Appointed jobs aren't elected: the leader, party or board keeps you on if you still have their backing.
+    const by = kind === 'cabinet' ? country.leader.name : sys.advancement === 'shares' ? 'The board' : 'The party congress';
+    next = log({ ...next, player: { ...p, termMonthsLeft: sys.termYears * 12, termsInOffice: p.termsInOffice + 1, record: { ...p.record, won: p.record.won + 1 } } },
+      `${by} ${kind === 'cabinet' ? 'keeps' : 'reconfirms'} ${p.name} as ${OFFICE_NAMES[p.office]} for another term.`);
   } else if (p.office && p.termMonthsLeft <= 0) {
     // Term over with no campaign (term-limited, dropped from cabinet, or didn't run higher): leave this office.
     const retired = atTop(next, p);
-    const why = kind === 'cabinet' && !termLimited ? ' The leader drops them in a reshuffle.' : '';
+    const why = appointed && !termLimited ? (kind === 'cabinet' ? ' The leader drops them in a reshuffle.' : ' They lose the backing to stay on.') : '';
     next = log({ ...next, player: { ...p, office: null, termsInOffice: 0, monthsInOffice: 0, retired } },
       `${p.name} leaves office as ${OFFICE_NAMES[p.office]} at the end of the term.${why}${retired ? ' The career is over.' : ''}`);
   } else if (p.office && p.termMonthsLeft === CAMPAIGN_MONTHS && termLimited) {
     next = log(next, `${p.name} is term-limited as ${OFFICE_NAMES[p.office]}. ${nextUp(next) ? 'Run for higher office now, or leave' : 'This is the final stretch: the career ends'} when the term ends.`);
-  } else if (p.office && p.termMonthsLeft === CAMPAIGN_MONTHS && kind === 'cabinet') {
-    next = log(next, `Reshuffle in ${CAMPAIGN_MONTHS} months: keep the leader's trust at ${REAPPOINT_AT}+ to stay, or run for higher office.`);
-  } else if (p.office && p.termMonthsLeft <= CAMPAIGN_MONTHS && !termLimited && kind !== 'cabinet') {
+  } else if (p.office && p.termMonthsLeft === CAMPAIGN_MONTHS && appointed) {
+    next = log(next, `Your term ends in ${CAMPAIGN_MONTHS} months: keep ${keepsAppointment(next, p).need} to stay on${nextUp(next) ? ', or run for higher office' : ''}.`);
+  } else if (p.office && p.termMonthsLeft <= CAMPAIGN_MONTHS && !termLimited && !appointed) {
     p = { ...p, campaign: makeCampaign(next, p, p.office, true, rng) };
     next = log({ ...next, player: p }, `Re-election season: ${p.campaign!.rival.name} (${p.campaign!.rival.party}) challenges ${p.name}. You can also run for higher office instead.`);
   }

@@ -5,6 +5,7 @@ import { newRegion } from './governor';
 import { newSeat } from './legislator';
 import { kindOf } from './offices';
 import { newMinistry } from './cabinet';
+import { clearOldJobs } from './career';
 import { newNation } from './nation';
 import { SYSTEMS } from '../data/systems';
 
@@ -48,7 +49,8 @@ function migrateV4(g: GameState): GameState {
   const country = g.countries[p.countryId];
   const ministry = p.ministry ?? (kind === 'cabinet' ? newMinistry(country) : null);
   const nation = p.nation ?? (kind === 'head' ? newNation(country, makeRng(g.seed + 3)) : null);
-  return { ...g, player: { ...p, ministry, nation, retired: p.retired ?? false } };
+  // Older saves could keep a past job's unanswered prompt, which froze the game.
+  return { ...g, player: clearOldJobs({ ...p, ministry, nation, retired: p.retired ?? false }) };
 }
 
 /** v3 saves predate lawmaker gameplay. A lawmaker from then gets a fresh seat. */

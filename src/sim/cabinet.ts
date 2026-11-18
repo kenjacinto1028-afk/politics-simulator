@@ -68,7 +68,7 @@ export function tickMinistry(g: GameState, rng: Rng): { game: GameState; lines: 
   m = {
     ...m,
     performance: clamp(m.performance + (45 - m.performance) * 0.04 + (running.length ? 0.5 : 0), 0, 100),
-    boss: clamp(m.boss + (50 + (m.performance - 50) * 0.3 - m.boss) * 0.05 - outshine, 0, 100),
+    boss: clamp(m.boss + (40 + (m.performance - 45) * 0.5 - m.boss) * 0.05 - outshine, 0, 100),
   };
 
   // The leader sometimes asks for public backing.
