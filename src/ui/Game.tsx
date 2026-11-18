@@ -4,22 +4,17 @@ import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
 import { ACTION_INFO, STANDING_LABEL, availableActions } from '../sim/career';
 import { cityRevenue } from '../sim/city';
 import type { City, SpendKey } from '../sim/types';
+import { campaignTip } from '../sim/mayor';
 import { SaveMenu } from './SaveMenu';
+import { Stat } from './Stat';
+import { VoterGroups } from './VoterGroups';
+import { Council } from './Council';
+import { Projects } from './Projects';
+import { Laws } from './Laws';
+import { HigherOffice } from './HigherOffice';
 
 const n0 = (n: number) => Math.round(n).toString();
 const fmt = (n: number, d = 1) => n.toFixed(d);
-
-function Stat({ label, value, good = true }: { label: string; value: number; good?: boolean }) {
-  const v = Math.round(value);
-  const tone = (good ? v : 100 - v) >= 55 ? 'up' : (good ? v : 100 - v) <= 40 ? 'down' : '';
-  return (
-    <div className="stat">
-      <span className="muted">{label}</span>
-      <div className="bar"><div className={`fill ${tone}`} style={{ width: `${v}%` }} /></div>
-      <span>{v}</span>
-    </div>
-  );
-}
 
 function BudgetEditor({ city }: { city: City }) {
   const setBudget = useGame((s) => s.setBudget);
@@ -87,6 +82,7 @@ export function Game() {
             <div className="them">{c.rival.name} {fmt(100 - c.poll, 0)}%</div>
           </div>
           <p className="muted">Rival: {c.rival.name}, {c.rival.party} · popularity {n0(c.rival.popularity)} · funds ${n0(c.rival.funds)}k</p>
+          <p className="tip"><b>Tip:</b> {campaignTip(game)}</p>
         </div>
       )}
 
@@ -113,6 +109,8 @@ export function Game() {
         </div>
       </div>
 
+      <VoterGroups />
+
       {city && (
         <div className="panel">
           <h3>{city.name} <span className="muted">pop. {n0(city.population)}k</span></h3>
@@ -129,6 +127,11 @@ export function Game() {
           </div>
         </div>
       )}
+
+      {p.office && city && <Council />}
+      {p.office && city && <Projects />}
+      {p.office && city && <Laws />}
+      {p.office && <HigherOffice />}
 
       <div className="panel">
         <h3>News</h3>

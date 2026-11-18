@@ -17,8 +17,8 @@
 - [x] Push branch + open PR
 
 ## Easier race + richer Mayor (branch feat/save-load-mayor)
-- [ ] Design doc — docs/MAYOR_DESIGN.md
-- [ ] Engine: voter groups, council, projects, laws, tips, next office — src/sim/mayor.ts, src/data/city-content.ts
-- [ ] Balance: first race ~75%, tests
-- [ ] UI (Sonnet): groups, council, projects, laws, tips — src/ui/
-- [ ] Browser play-test, republish play link, push
+- [x] Design doc — docs/MAYOR_DESIGN.md
+- [x] Engine: voter groups, council, projects, laws, tips, next office — src/sim/mayor.ts, src/data/city-content.ts
+- [x] Balance: first race ~75%, higher office ~55-65%, 21 tests — src/sim/mayor.test.ts
+- [x] UI (Sonnet): groups, council, projects, laws, tips — src/ui/*.tsx
+- [x] Browser play-test, republish play link, push

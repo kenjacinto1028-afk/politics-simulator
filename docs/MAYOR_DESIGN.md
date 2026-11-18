@@ -10,7 +10,7 @@ Workers 35%, Business 20%, Retirees 25%, Students 20% of the electorate. Each ha
 
 ## City council (7 seats)
 Each member leans toward one group and has a relationship with you (0–100). In one-party states it is the party committee; in corporate states, the board.
-- A proposal passes with 4+ yes votes. A member votes yes when relationship + 4 × (how much the proposal helps their group) ± noise ≥ 50. The UI shows a forecast per member.
+- A proposal passes with 4+ yes votes. A member votes yes when relationship + 4 × (how much the proposal helps their group) ± noise ≥ 58 (a bit above the council's natural mood, so lobbying matters). The UI shows a forecast per member.
 - **Lobby** a member: +8–14 relationship (1 action). **Cut a deal**: $20k funds, +20 relationship.
 - Relationships drift toward your popularity.
 

@@ -48,3 +48,17 @@ input[type=range] { display: block; width: 100%; box-sizing: border-box; margin:
   .header, .cols { grid-template-columns: 1fr; }
   .kpis { gap: 10px; }
 }
+.tip { background: #3a3220; border-left: 3px solid #c9a33a; padding: 8px 10px; border-radius: 4px; margin: 10px 0 0; font-size: 14px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.card { background: #262a35; border-radius: 6px; padding: 12px; min-width: 0; }
+.card p { margin: 6px 0; }
+.small-text { font-size: 13px; }
+.effects { font-size: 13px; }
+.pos { color: #3fb36a; }
+.stat.wide { grid-template-columns: 110px 1fr 32px; }
+.panel h4 { margin: 14px 0 6px; }
+ul.plain { margin: 0; padding-left: 18px; }
+@media (max-width: 700px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .panel { overflow-wrap: anywhere; }
+}

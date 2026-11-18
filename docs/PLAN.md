@@ -20,7 +20,7 @@
 | 3 | Mayor: city budget, approval, local events | Opus (design) → Sonnet (UI) ✅ |
 | 4 | Elections & campaigns (polls, funds, debates, endorsements) | Opus (basic version ✅; endorsements, issues, ads targeting next) |
 | 5 | Parties & factions, legislature votes | Opus |
-| 6 | Promotions up the ladder per political system | Sonnet |
+| 6 | Promotions up the ladder per political system | Sonnet (running for next office ✅; gameplay per higher office next) |
 | 7 | National detail: economy, population, migration, tourism, culture | Opus |
 | 8 | Diplomacy, trade, wars (high-level for AI nations) | Opus |
 | 9 | News feed & event writing | Haiku |

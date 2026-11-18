@@ -68,17 +68,20 @@ export function tickBuilds(c: City): { city: City; finished: ProjectDef[] } {
 
 type Proposal = { groups: Partial<Record<GroupId, number>> };
 
-/** How strongly a member leans yes, before noise. 50 is the tipping point. */
+/** A member votes yes at or above this score. Above the council's natural mood, so lobbying matters. */
+export const YES_AT = 58;
+
+/** How strongly a member leans yes, before noise. */
 export const memberScore = (m: CouncilMember, prop: Proposal) => m.relationship + (prop.groups[m.leans] ?? 0) * 4;
 
 export function forecast(c: City, prop: Proposal) {
   const votes = c.council.map((m) => memberScore(m, prop));
-  const likelyYes = votes.filter((v) => v >= 50).length;
+  const likelyYes = votes.filter((v) => v >= YES_AT).length;
   return { votes, likelyYes, needed: Math.floor(c.council.length / 2) + 1 };
 }
 
 function vote(c: City, prop: Proposal, rng: Rng) {
-  const yes = c.council.filter((m) => memberScore(m, prop) + (rng() - 0.5) * 16 >= 50).length;
+  const yes = c.council.filter((m) => memberScore(m, prop) + (rng() - 0.5) * 16 >= YES_AT).length;
   return { yes, passed: yes > c.council.length / 2 };
 }
 
