@@ -21,6 +21,7 @@ import { Cabinet, AskModal } from './Cabinet';
 import { Nation } from './Nation';
 import { Retired } from './Retired';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
+import { countryLabel } from '../data/local-names';
 
 const n0 = (n: number) => Math.round(n).toString();
 const fmt = (n: number, d = 1) => n.toFixed(d);
@@ -84,7 +85,7 @@ export function Game() {
       <div className="panel header">
         <div>
           <h2>{p.name}</h2>
-          <p>{title} · {home.name} <span className="muted">({sys.name})</span></p>
+          <p>{title} · {countryLabel(home)} <span className="muted">({sys.name})</span></p>
           <p className="muted">
             {game.year}-{String(game.month).padStart(2, '0')} · Age {p.age} · Record {p.record.won}W–{p.record.lost}L
             {p.office && ` · Term: ${p.termMonthsLeft} mo left`}
@@ -192,7 +193,7 @@ export function Game() {
               <tbody>
                 {Object.values(game.countries).map((x) => (
                   <tr key={x.id} className={x.id === p.countryId ? 'home' : ''}>
-                    <td>{x.name}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}</td><td>{fmt(x.leader.approval, 0)}%</td>
+                    <td>{countryLabel(x)}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}</td><td>{fmt(x.leader.approval, 0)}%</td>
                     <td>{fmt(x.economy.gdpBn, 0)}</td><td>{fmt(x.economy.growth)}%</td><td>{fmt(x.economy.unemployment)}%</td>
                   </tr>
                 ))}

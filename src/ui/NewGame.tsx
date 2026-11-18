@@ -3,6 +3,7 @@ import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
 import { WORLD_SIZES, WORLD_SIZE_LABELS, type WorldSize } from '../data/countries';
 import { SaveMenu } from './SaveMenu';
+import { countryLabel } from '../data/local-names';
 
 export function NewGame() {
   const { game, setWorldSize, startCareer } = useGame();
@@ -25,7 +26,7 @@ export function NewGame() {
         <label>Nation
           <select value={country.id} onChange={(e) => setCountryId(e.target.value)}>
             {Object.values(countries).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}{c.fantasy ? ' (fantasy)' : ''}</option>
+              <option key={c.id} value={c.id}>{countryLabel(c)}{c.fantasy ? ' (fantasy)' : ''}</option>
             ))}
           </select>
         </label>

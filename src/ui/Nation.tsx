@@ -5,6 +5,7 @@ import { ADDRESS_COOLDOWN, TRADE_MIN_RELATION, WAR_MAX_RELATION, canAddress, def
 import type { Nation as NationT } from '../sim/types';
 import { Effects } from './effects';
 import { Stat } from './Stat';
+import { countryLabel } from '../data/local-names';
 
 const f1 = (n: number) => n.toFixed(1);
 const n0 = (n: number) => Math.round(n).toString();
@@ -167,7 +168,7 @@ function Diplomacy() {
               const canWar = !n.war && rel <= WAR_MAX_RELATION;
               return (
                 <tr key={c.id}>
-                  <td>{c.name}{dealt && <span className="pos small-text"> trade deal</span>}</td>
+                  <td>{countryLabel(c)}{dealt && <span className="pos small-text"> trade deal</span>}</td>
                   <td className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</td>
                   <td>
                     <div className="row">
