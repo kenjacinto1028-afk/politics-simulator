@@ -49,7 +49,8 @@ describe('career history and end game', () => {
     const low = careerScore({ ...g, player: { ...g.player!, highestRung: 0 } }).total;
     const high = careerScore({ ...g, player: { ...g.player!, highestRung: top, record: { won: 6, lost: 1 } } }).total;
     expect(high).toBeGreaterThan(low + 300);
-    expect(rankOf(800, false).grade).toBe('S');
+    expect(rankOf(1000, false).grade).toBe('S');
+    expect(rankOf(800, false).grade).toBe('A');
     expect(rankOf(400, true).title).toBe('Disgraced');
     expect(rankOf(0, false).grade).toBe('E');
   });

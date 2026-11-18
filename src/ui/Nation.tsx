@@ -9,7 +9,8 @@ import { parliamentShift } from '../sim/systems';
 import { TRAITS } from '../data/people';
 import { countryLabel } from '../data/local-names';
 import { Flag } from './Flag';
-import { Portrait } from './Portrait';
+import { LeaderLink } from './LeaderCard';
+import { SpyWatch } from './Abroad';
 import { armsBlocker, armsCost, inviteBlocker, nuclearShield, TIERS, tierOf } from '../sim/geo';
 import { BLOCS, RESOURCES } from '../data/geo';
 import { AllyCallCard, AlliesCard, BlocActions, OfferCard } from './WorldPower';
@@ -167,6 +168,7 @@ export function Diplomacy() {
       )}
       <BlocActions />
       <AlliesCard />
+      <SpyWatch />
       <div className="row">
         <button className="action" disabled={blocked || !canHostSummit(game)} onClick={hostSummit}>Host summit<small>{canHostSummit(game) ? '$5bn · everyone warms to you' : `Once every ${SUMMIT_COOLDOWN} months (${Math.max(1, SUMMIT_COOLDOWN - (game.turn - n.lastSummitTurn))} to go)`}</small></button>
       </div>
@@ -186,7 +188,7 @@ export function Diplomacy() {
               return (
                 <tr key={c.id}>
                   <td><Flag id={c.id} size={14} /> {countryLabel(c)} <span className="badge">{TIERS[tierOf(c)].name}</span><br /><span className="muted small-text">{BLOCS[c.bloc].name} · army {Math.round(c.military)}{c.nuclear ? ' · nuclear' : ''} · exports {RESOURCES[c.resource].name.toLowerCase()}</span>{dealt && <span className="pos small-text"> trade deal</span>}{n.alliances.includes(c.id) && <span className="badge good">Ally</span>}</td>
-                  <td className="small-text"><Portrait name={c.leader.name} traits={c.leader.traits} junta={!!c.junta} size={32} /> {c.leader.name}{c.junta && <span className="badge warn">Military rule</span>}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}{c.decisions?.[0] && <><br />Latest: {c.decisions[0]}</>}</span></td>
+                  <td className="small-text"><LeaderLink id={c.id} />{c.junta && <span className="badge warn">Military rule</span>}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}{c.decisions?.[0] && <><br />Latest: {c.decisions[0]}</>}</span></td>
                   <td className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</td>
                   <td>
                     <details>

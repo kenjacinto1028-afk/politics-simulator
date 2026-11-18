@@ -31,6 +31,8 @@ export const EVENT_GAP = 2;
 export const EVENT_MEMORY = 8;
 /** Every career ends eventually. */
 export const RETIRE_AGE = 75;
+/** Years at the top before people start tiring of you. */
+export const FATIGUE_YEARS = 8;
 const pick = <T,>(arr: readonly T[], rng: Rng) => arr[Math.floor(rng() * arr.length)];
 
 export type CampaignAction = 'rally' | 'fundraise' | 'ads' | 'door-knock' | 'debate' | 'party-work' | 'buy-shares' | 'town-hall';
@@ -309,6 +311,8 @@ function atTop(g: GameState, p: Player): boolean {
 export const REAPPOINT_AT = 40;
 /** Leaders in one-party and corporate states aren't voted out: the party or board reconfirms them if your standing holds. */
 export const RECONFIRM_LOYALTY = 30;
+/** Extra standing needed for each term after the first. */
+export const RECONFIRM_STEP = 7;
 
 /** Jobs you keep by someone's say-so rather than an election. */
 export function isAppointed(g: GameState, p: Player): boolean {
@@ -320,7 +324,9 @@ export function isAppointed(g: GameState, p: Player): boolean {
 export function keepsAppointment(g: GameState, p: Player): { ok: boolean; need: string } {
   if (kindOf(p.office) === 'cabinet') return { ok: (p.ministry?.boss ?? 0) >= REAPPOINT_AT, need: `the leader's trust at ${REAPPOINT_AT}+` };
   const who = SYSTEMS[g.countries[p.countryId].systemId].advancement === 'shares' ? 'board' : 'party';
-  return { ok: p.loyalty >= RECONFIRM_LOYALTY, need: `${who} standing at ${RECONFIRM_LOYALTY}+` };
+  // Each extra term asks for more: insiders want fresh faces too.
+  const need = Math.min(70, RECONFIRM_LOYALTY + RECONFIRM_STEP * Math.max(0, p.termsInOffice - 1));
+  return { ok: p.loyalty >= need, need: `${who} standing at ${need}+` };
 }
 
 function basePool(p: Player): PendingEvent[] {
@@ -410,6 +416,13 @@ function tickPlayerInner(g: GameState, rng: Rng): GameState {
     const t = tickNation({ ...g, player: p }, rng);
     world = t.game; p = t.game.player!;
     done.push(...t.lines);
+    // Voters and insiders tire of a leader who stays too long.
+    const yearsTop = (p.history?.monthsByOffice?.[p.office!] ?? p.monthsInOffice) / 12;
+    if (yearsTop >= FATIGUE_YEARS) {
+      const f = Math.min(2.5, (yearsTop - FATIGUE_YEARS + 1) * 0.3);
+      p = { ...p, popularity: clamp(p.popularity - f, 0, 100), loyalty: clamp(p.loyalty - f * 0.8, 0, 100) };
+      if (Math.abs(yearsTop - FATIGUE_YEARS) < 1 / 24) done.push(`After ${FATIGUE_YEARS} years in power, people are growing tired of ${p.name}.`);
+    }
   } else if (kind === 'legislative' && p.seat) {
     const t = tickSeat(p, rng);
     p = t.player;

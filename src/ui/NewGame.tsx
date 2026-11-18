@@ -1,4 +1,5 @@
 import { HallOfFame } from './Career';
+import { AchievementsPanel, setTutorial, tutorialDefault } from './Extras';
 import { useState } from 'react';
 import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
@@ -17,6 +18,7 @@ export function NewGame() {
   const country = countries[countryId] ?? Object.values(countries)[0];
   const sys = SYSTEMS[country.systemId];
   const [faithPick, setFaithPick] = useState<FaithId | null>(null);
+  const [tutorial, setTut] = useState(tutorialDefault);
   const faith: FaithId = faithPick && (!FAITHS[faithPick].fantasy || faithPick === country.faith || country.fantasy) ? faithPick : country.faith;
   const faithIds = (Object.keys(FAITHS) as FaithId[]).filter((f) => !FAITHS[f].fantasy || country.fantasy || f === country.faith);
   const level = country.religiosity >= 65 ? 'high' : country.religiosity >= 35 ? 'medium' : 'low';
@@ -49,12 +51,14 @@ export function NewGame() {
           </select>
         </label>
         <p className="muted">Career path: {sys.ladder.map((o) => OFFICE_NAMES[o]).join(' → ')}</p>
-        <button onClick={() => startCareer(name, country.id, faith)} disabled={!name.trim()}>
+        <label><input type="checkbox" checked={tutorial} onChange={(e) => setTut(e.target.checked)} /> Show me how to play (short tutorial)</label>
+        <button onClick={() => { setTutorial(tutorial); startCareer(name, country.id, faith); }} disabled={!name.trim()}>
           Run for {OFFICE_NAMES[sys.ladder[0]]}
         </button>
       </div>
       <SaveMenu canSave={false} />
       <HallOfFame />
+      <AchievementsPanel />
     </>
   );
 }

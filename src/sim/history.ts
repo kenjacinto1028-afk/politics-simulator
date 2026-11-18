@@ -125,7 +125,7 @@ export function retireNow(g: GameState): GameState {
 
 export interface ScoreLine { label: string; points: number }
 export const RANKS: [number, string, string][] = [
-  [750, 'S', 'Legend'], [550, 'A', 'Statesman'], [380, 'B', 'Respected leader'], [220, 'C', 'Career politician'], [90, 'D', 'Forgettable'], [-Infinity, 'E', 'Footnote'],
+  [950, 'S', 'Legend'], [720, 'A', 'Statesman'], [500, 'B', 'Respected leader'], [300, 'C', 'Career politician'], [120, 'D', 'Forgettable'], [-Infinity, 'E', 'Footnote'],
 ];
 
 export function rankOf(score: number, removed: boolean): { grade: string; title: string } {
@@ -141,9 +141,11 @@ export function careerScore(g: GameState): { total: number; lines: ScoreLine[]; 
   const push = (label: string, points: number) => { if (Math.round(points) !== 0) lines.push({ label, points: Math.round(points) }); };
   push(`Highest office: ${p.highestRung >= 0 ? OFFICE_NAMES[ladder[p.highestRung]] : 'none'}`, ((p.highestRung + 1) / ladder.length) * 400);
   const months = Object.values(h.monthsByOffice).reduce((a, b) => a + (b ?? 0), 0);
-  push(`Years in office: ${(months / 12).toFixed(1)}`, (months / 12) * 6);
+  const yrs = months / 12;
+  push(`Years in office: ${yrs.toFixed(1)}`, Math.min(yrs, 20) * 6 + Math.max(0, yrs - 20) * 2);
   const top = h.monthsByOffice[ladder[ladder.length - 1]] ?? 0;
-  push(`Years at the top: ${(top / 12).toFixed(1)}`, (top / 12) * 10);
+  const topY = top / 12;
+  push(`Years at the top: ${topY.toFixed(1)}`, Math.min(topY, 10) * 10 + Math.max(0, topY - 10) * 3);
   push(`Elections: ${p.record.won} won, ${p.record.lost} lost`, p.record.won * 15 - p.record.lost * 5);
   const served = h.years.filter((y) => y.office);
   if (served.length) {
@@ -156,7 +158,7 @@ export function careerScore(g: GameState): { total: number; lines: ScoreLine[]; 
     const growth = (e.gdpBn / Math.max(1, s.gdpBn) - 1) * 100;
     push('How the country changed under you', Math.max(-150, Math.min(200, better * 2 + growth)));
   }
-  if (p.nation) push('Legacy', p.nation.legacy);
+  if (p.nation) push('Legacy', Math.min(150, p.nation.legacy));
   push(`Wars: ${h.warsWon} won, ${h.warsLost} lost`, h.warsWon * 30 - h.warsLost * 40);
   if (h.scandals) push(`Scandals: ${h.scandals}`, -15 * h.scandals);
   if (h.removed) push('Removed from power', -100);

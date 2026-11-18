@@ -8,6 +8,7 @@ import { tickGeo } from './geo';
 import { newWorld, tickSociety } from './society';
 import { recordMonth } from './history';
 import { tickAI } from './ai';
+import { tickAbroad } from './abroad';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -33,7 +34,7 @@ export function advanceMonth(state: GameState, rng: Rng): GameState {
   for (const [id, c] of Object.entries(state.countries)) countries[id] = id === led ? c : tickCountry(c, rng);
   const month = state.month === 12 ? 1 : state.month + 1;
   const year = state.month === 12 ? state.year + 1 : state.year;
-  return recordMonth(state, tickPlayer(tickAI(tickSociety(tickGeo(tickWorld({ ...state, turn: state.turn + 1, month, year, countries }, rng), rng), rng), rng), rng));
+  return recordMonth(state, tickAbroad(tickPlayer(tickAI(tickSociety(tickGeo(tickWorld({ ...state, turn: state.turn + 1, month, year, countries }, rng), rng), rng), rng), rng), rng));
 }
 
 /** Deterministic RNG for a given game moment; `salt` separates independent rolls within a turn. */
