@@ -10,6 +10,8 @@ import type { PortfolioId } from './data/cabinet-content';
 import { askEndorsement, faithOutreach, feud, jointDeal, meetContact } from './sim/people';
 import { buyback, callReferendum, choosePatron, consultCoalition, defyCapital, executiveOrder, lobbyCapital, negotiateUnions, payRespects, royalOccasion } from './sim/systems';
 import { foreignAid, formAlliance, hostSummit } from './sim/nation';
+import { answerAlly, armsDeal, askAlly, backSide, inviteToBloc, joinBloc, leaveBloc } from './sim/geo';
+import type { BlocId } from './data/geo';
 import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
 import type { FaithId, GameState, GroupId, Nation, OfficeId, Region, SpendKey } from './sim/types';
@@ -45,6 +47,13 @@ interface Store {
   hostSummit: () => void;
   foreignAid: (countryId: string) => void;
   formAlliance: (countryId: string) => void;
+  joinBloc: (bloc: BlocId) => void;
+  leaveBloc: () => void;
+  askAlly: (countryId: string, kind: 'aid' | 'troops') => void;
+  answerAlly: (accept: boolean) => void;
+  armsDeal: (countryId: string) => void;
+  inviteToBloc: (countryId: string) => void;
+  backSide: (countryId: string, side: 'gov' | 'rebel') => void;
   nextTurn: () => void;
   act: (a: CampaignAction) => void;
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
@@ -121,6 +130,13 @@ export const useGame = create<Store>((set, get) => ({
   hostSummit: () => set((s) => ({ game: hostSummit(s.game) })),
   foreignAid: (id) => set((s) => ({ game: foreignAid(s.game, id) })),
   formAlliance: (id) => set((s) => ({ game: formAlliance(s.game, id) })),
+  joinBloc: (b) => set((s) => ({ game: joinBloc(s.game, b) })),
+  leaveBloc: () => set((s) => ({ game: leaveBloc(s.game) })),
+  askAlly: (id, kind) => set((s) => ({ game: askAlly(s.game, id, kind, actionRng(s.game)) })),
+  answerAlly: (accept) => set((s) => ({ game: answerAlly(s.game, accept) })),
+  armsDeal: (id) => set((s) => ({ game: armsDeal(s.game, id) })),
+  inviteToBloc: (id) => set((s) => ({ game: inviteToBloc(s.game, id) })),
+  backSide: (id, side) => set((s) => ({ game: backSide(s.game, id, side) })),
   nextTurn: () => {
     const g = get().game;
     if (blockingPrompt(g.player)) return;

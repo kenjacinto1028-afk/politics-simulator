@@ -72,3 +72,12 @@
 - [x] Used everywhere — src/sim/names.ts; city, council, rivals, parties, regions, contacts, AI leaders (Opus)
 - [x] Tested — 83 tests incl. locale coverage + PH career check; browser check PH/Eldmar/Japan, no errors
 - [x] Merge, update play link
+
+## Great powers, geopolitics and allies (branch feat/geopolitics)
+- [x] Power data — src/data/geo.ts: region, bloc, army, nuclear, main export for 50 countries; rivalries (Opus)
+- [x] Mechanics — src/sim/geo.ts: power tiers, influence, bloc pull, courting, bloc joins/exits, proxy civil wars, hostile-power sanctions, trade exports, war by army strength, nuclear deterrence (Opus)
+- [x] 18 world events for every level with {power} (Sonnet) — src/data/geo-events.ts
+- [x] Leader moves: join/leave bloc, buy arms, invite to bloc, back a side in civil wars
+- [x] Allies: ask for aid/troops (favors, personality), allies call for help, refusing costs trust or the alliance
+- [x] UI: World power panel, World table columns, Diplomacy bloc/allies cards; save v7 migration
+- [x] Tested — 94 tests, fuzz incl. new actions, 43 old saves clicked through, phone layout

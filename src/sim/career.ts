@@ -13,6 +13,8 @@ import { newMinistry, tickMinistry } from './cabinet';
 import { newNation, tickNation } from './nation';
 import { NATIONAL_EVENTS } from '../data/nation-content';
 import { MORE_EVENTS } from '../data/more-events';
+import { GEO_EVENTS } from '../data/geo-events';
+import { powerIndex } from './geo';
 import { FAITHS } from '../data/people';
 import { clearEndorsements, contactsByRole, endorsementBonus, faithEdge, newContacts, resetDeals, setRelation, tickContacts, tickFaith } from './people';
 import { newSystemState, rollCohabitation, systemScoreBonus, tickSystem } from './systems';
@@ -330,7 +332,7 @@ function eventPool(g: GameState): EventDef[] {
   const p = g.player!;
   const c = g.countries[p.countryId];
   const kind = kindOf(p.office) ?? 'out';
-  const extra = MORE_EVENTS.filter((e) => (e.kinds ? e.kinds.includes(kind) : kind !== 'out') && (!e.systems || e.systems.includes(c.systemId))
+  const extra = [...MORE_EVENTS, ...GEO_EVENTS].filter((e) => (e.kinds ? e.kinds.includes(kind) : kind !== 'out') && (!e.systems || e.systems.includes(c.systemId))
     && (e.minReligiosity === undefined || c.religiosity >= e.minReligiosity) && (!e.about || contactsByRole(g, e.about).length > 0));
   return [...(p.office ? basePool(p) : []), ...extra];
 }
@@ -340,9 +342,12 @@ function prepareEvent(g: GameState, ev: EventDef, rng: Rng): PendingEvent {
   const p = g.player!;
   const c = g.countries[p.countryId];
   const who = ev.about ? pick(contactsByRole(g, ev.about), rng) : undefined;
+  // {power}: one of the strongest foreign countries.
+  const powers = Object.values(g.countries).filter((o) => o.id !== c.id).sort((a, b) => powerIndex(b) - powerIndex(a)).slice(0, 3);
+  const power = powers.length ? pick(powers, rng).name : 'a foreign power';
   const fill = (t: string) => t.replace(/\{name\}/g, who?.name ?? 'a colleague').replace(/\{role\}/g, who?.role ?? 'an official')
     .replace(/\{city\}/g, p.city?.name ?? 'your city').replace(/\{country\}/g, c.name).replace(/\{leader\}/g, c.leader.name)
-    .replace(/\{faith\}/g, FAITHS[c.faith].name);
+    .replace(/\{faith\}/g, FAITHS[c.faith].name).replace(/\{power\}/g, power);
   return { id: ev.id, title: fill(ev.title), text: fill(ev.text), choices: ev.choices.map((ch) => ({ ...ch, label: fill(ch.label), log: fill(ch.log) })), contactId: who?.id };
 }
 

@@ -60,7 +60,8 @@ describe('governor', () => {
     for (let i = 0; i < 48; i++) {
       g = advanceMonth(g, rngFor(g));
       if (g.player!.pendingEvent) g = resolveEvent(g, 0);
-      if (g.player!.region!.pendingBill) { months.push(g.turn); g = decideBill(g, true); }
+      if (!g.player!.region) break;
+      if (g.player!.region.pendingBill) { months.push(g.turn); g = decideBill(g, true); }
     }
     expect(months.length).toBeGreaterThan(4);
     for (let i = 1; i < months.length; i++) expect(months[i] - months[i - 1]).toBeGreaterThanOrEqual(3);
