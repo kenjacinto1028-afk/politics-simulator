@@ -25,6 +25,9 @@ import { k, moneyChange, treasuryOf } from './money';
 import { Cabinet, AskModal } from './Cabinet';
 import { Nation, Diplomacy } from './Nation';
 import { Retired } from './Retired';
+import { CountUp, EventArt, MuteButton, SoundSettings } from './Juice';
+import { Flag } from './Flag';
+import { Portrait } from './Portrait';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 import { countryLabel } from '../data/local-names';
 import { SYSTEM_RULES } from '../data/people';
@@ -116,16 +119,16 @@ export function Game() {
     <div className={phone ? 'grid phone' : 'grid'}>
       <div className="panel header">
         <div>
-          <h2>{p.name}</h2>
-          <p>{title} · {countryLabel(home)} <span className="muted">({sys.name})</span></p>
+          <h2>{p.name} <MuteButton /></h2>
+          <p>{title} · <Flag id={home.id} size={14} /> {countryLabel(home)} <span className="muted">({sys.name})</span></p>
           <p className="muted">
             {game.year}-{String(game.month).padStart(2, '0')} · Age {p.age} · Record {p.record.won}W–{p.record.lost}L
             {p.office && ` · Term: ${p.termMonthsLeft} mo left`}
           </p>
         </div>
         <div className="kpis">
-          <div><b>{n0(p.popularity)}</b><span>Popularity</span></div>
-          <div><b>${n0(p.funds)}k</b><span>Campaign funds</span></div>
+          <div><b><CountUp value={p.popularity} format={n0} /></b><span>Popularity</span></div>
+          <div><b>$<CountUp value={p.funds} format={n0} />k</b><span>Campaign funds</span></div>
           {money && <div><b className={money.value < 0 ? 'neg' : ''}>{money.bn ? `$${money.value.toFixed(1)}bn` : money.debt ? `${Math.round(money.value)}%` : k(money.value)}</b><span>{money.label}{money.debt && p.nation && ` · yearly ${deficit(p.nation) > 0 ? 'deficit' : 'surplus'} ${Math.abs(deficit(p.nation)).toFixed(1)}%`}{money.perMonth !== undefined && ` (+${k(money.perMonth)}/mo)`}</span></div>}
           <div title={SYSTEM_RULES[home.systemId].meterBlurb}><b>{n0(p.sys.meter)}</b><span>{SYSTEM_RULES[home.systemId].meter}</span></div>
           <div><b>{n0(p.loyalty)}</b><span>{STANDING_LABEL[sys.advancement]}</span></div>
@@ -147,7 +150,7 @@ export function Game() {
             <div className="you" style={{ width: `${c.poll}%` }}>You {fmt(c.poll, 0)}%</div>
             <div className="them">{c.rival.name} {fmt(100 - c.poll, 0)}%</div>
           </div>
-          <p className="muted">Rival: {c.rival.name}, {c.rival.party} · popularity {n0(c.rival.popularity)} · funds ${n0(c.rival.funds)}k</p>
+          <p className="muted"><Portrait name={c.rival.name} size={28} /> Rival: {c.rival.name}, {c.rival.party} · popularity {n0(c.rival.popularity)} · funds ${n0(c.rival.funds)}k</p>
           <p className="tip"><b>Tip:</b> {campaignTip(game)}</p>
         </div>
       )}
@@ -236,7 +239,7 @@ export function Game() {
               <tbody>
                 {Object.values(game.countries).map((x) => (
                   <tr key={x.id} className={x.id === p.countryId ? 'home' : ''}>
-                    <td>{countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}{x.junta ? ' (junta)' : ''}</td><td>{fmt(x.leader.approval, 0)}%</td>
+                    <td><Flag id={x.id} size={12} /> {countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}{x.junta ? ' (junta)' : ''}</td><td>{fmt(x.leader.approval, 0)}%</td>
                     <td>{fmt(x.economy.gdpBn, 0)}</td><td>{fmt(x.economy.growth)}%</td><td>{fmt(x.economy.unemployment)}%</td>
                   </tr>
                 ))}
@@ -248,6 +251,7 @@ export function Game() {
 
       {on('more') && <CareerSoFar />}
       {on('more') && <SaveMenu canSave />}
+      {on('more') && <SoundSettings />}
       {phone && tab === 'more' && <button className="secondary" onClick={quitToMenu}>Main menu</button>}
 
       {phone && (
@@ -266,6 +270,7 @@ export function Game() {
       {p.pendingEvent ? (
         <div className="modal">
           <div className="panel">
+            <EventArt title={p.pendingEvent.title} text={p.pendingEvent.text} />
             <h3>{p.pendingEvent.title}</h3>
             <p>{p.pendingEvent.text}</p>
             {p.pendingEvent.choices.some((ch) => ch.effects.treasury || ch.effects.funds) && (

@@ -2,6 +2,8 @@ import { useGame } from '../store';
 import { BLOCS, REGIONS, RESOURCES, type BlocId } from '../data/geo';
 import { aidAmount, alliesOf, askBlocker, blocLeader, blocMembers, helpChance, influence, joinBlocBlocker, TIERS, tierOf } from '../sim/geo';
 import { kindOf } from '../sim/offices';
+import { Flag } from './Flag';
+import { Portrait } from './Portrait';
 
 const tierClass = (t: string) => (t === 'super' || t === 'great' ? 'badge good' : t === 'regional' ? 'badge' : 'badge muted');
 
@@ -18,7 +20,7 @@ export function WorldPower() {
     <div className="panel">
       <h3>World power</h3>
       <p>
-        <b>{me.name}</b> <span className={tierClass(t)}>{TIERS[t].name}</span>
+        <Flag id={me.id} /> <b>{me.name}</b> <span className={tierClass(t)}>{TIERS[t].name}</span>
         <br /><span className="muted small-text">{TIERS[t].blurb}</span>
       </p>
       <p className="small-text">
@@ -44,7 +46,7 @@ export function WorldPower() {
             const lead = cf.score > 8 ? 'Government winning' : cf.score < -8 ? 'Rebels winning' : 'Stalemate';
             return (
               <li key={cf.country}>
-                <b>Civil war in {c.name}</b> · month {cf.months} · {lead}
+                <b><Flag id={c.id} size={12} /> Civil war in {c.name}</b> · month {cf.months} · {lead}
                 <br /><span className="small-text">{gov} backs the government. {reb} backs the rebels.{cf.playerSide && <b> You back the {cf.playerSide === 'gov' ? 'government' : 'rebels'}.</b>}</span>
                 {leading && !cf.playerSide && cf.country !== p.countryId && (
                   <div className="row">
@@ -99,7 +101,7 @@ function AIWars({ leading, blocked }: { leading: boolean; blocked: boolean }) {
         const lead = w.score > 8 ? `${a.name} winning` : w.score < -8 ? `${b.name} winning` : 'Stalemate';
         return (
           <li key={`${w.a}-${w.b}`}>
-            <b>{a.name} vs {b.name}</b> · month {w.months} · {lead}
+            <b><Flag id={a.id} size={12} /> {a.name} vs <Flag id={b.id} size={12} /> {b.name}</b> · month {w.months} · {lead}
             {w.playerSide && <><br /><span className="small-text">You armed {game.countries[w.playerSide].name}.</span></>}
             {leading && !w.playerSide && w.a !== game.player!.countryId && w.b !== game.player!.countryId && (
               <div className="row">
@@ -129,8 +131,8 @@ export function OfferCard() {
         : 'Joining a bloc brings protection but angers the rival bloc.';
   return (
     <div className="panel">
-      <h3>{threat ? `Demand from ${c.name}` : `Offer from ${c.name}`}</h3>
-      <p>{o.text}</p>
+      <h3><Flag id={c.id} /> {threat ? `Demand from ${c.name}` : `Offer from ${c.name}`}</h3>
+      <p className="with-face"><Portrait name={c.leader.name} traits={c.leader.traits} junta={!!c.junta} size={44} /><span>{o.text}</span></p>
       <p className="muted small-text">{hint} {o.monthsLeft} month{o.monthsLeft === 1 ? '' : 's'} to answer; no answer counts as a no.</p>
       <div className="row">
         <button className="small" disabled={!!p.pendingEvent} onClick={() => answerOffer(true)}>{threat ? 'Give in' : 'Accept'}</button>
@@ -149,8 +151,8 @@ export function AllyCallCard() {
   const a = game.countries[call.from];
   return (
     <div className="panel">
-      <h3>{a.name} asks for help</h3>
-      <p>{call.reason} {a.leader.name} asks you to send {call.kind === 'aid' ? 'money' : 'troops'}.</p>
+      <h3><Flag id={a.id} /> {a.name} asks for help</h3>
+      <p className="with-face"><Portrait name={a.leader.name} traits={a.leader.traits} size={44} /><span>{call.reason} {a.leader.name} asks you to send {call.kind === 'aid' ? 'money' : 'troops'}.</span></p>
       <p className="muted small-text">
         {call.kind === 'aid' ? 'Helping costs a few billion but wins trust and a favor you can call in later.' : 'Sending troops weakens your army a little and worries voters, but earns two favors.'}
         {' '}Saying no hurts relations and may end the alliance. {call.monthsLeft} month{call.monthsLeft === 1 ? '' : 's'} to answer.
@@ -181,7 +183,7 @@ export function AlliesCard() {
             const troopWhy = askBlocker(game, id, 'troops');
             return (
               <li key={id}>
-                <b>{a.name}</b> <span className="muted small-text">{TIERS[tierOf(a)].name} · {f > 0 ? `owes you ${f} favor${f === 1 ? '' : 's'}` : f < 0 ? `you owe ${-f} favor${f === -1 ? '' : 's'}` : 'even'}</span>
+                <Flag id={a.id} size={12} /> <b>{a.name}</b> <span className="muted small-text">{TIERS[tierOf(a)].name} · {f > 0 ? `owes you ${f} favor${f === 1 ? '' : 's'}` : f < 0 ? `you owe ${-f} favor${f === -1 ? '' : 's'}` : 'even'}</span>
                 <div className="row">
                   <button className="small" disabled={blocked || !!aidWhy} title={aidWhy ?? ''} onClick={() => askAlly(id, 'aid')}>Ask for ${aidAmount(a)}bn aid ({aidWhy ?? `${Math.round(helpChance(game, id, 'aid') * 100)}%`})</button>
                   {p.nation?.war && <button className="small" disabled={blocked || !!troopWhy} title={troopWhy ?? ''} onClick={() => askAlly(id, 'troops')}>Ask for troops ({troopWhy ?? `${Math.round(helpChance(game, id, 'troops') * 100)}%`})</button>}

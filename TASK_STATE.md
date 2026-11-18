@@ -107,4 +107,11 @@
 ## GitHub Pages + phone view (branch feat/pages-mobile)
 - [x] gh-pages branch + auto-deploy workflow — .github/workflows/pages.yml
 - [x] Phone fixes: folded diplomacy actions, table wrapping, stat values — src/index.css, src/ui/Nation.tsx, Game.tsx, Career.tsx
-- [ ] Images, music and sound: waiting for Kenneth to pick
+- [x] Images, music and sound: picked, see below
+
+## Sound and art (branch feat/sound-art)
+- [x] Web Audio sound effects + mood music, settings saved — src/audio/sound.ts, src/ui/Juice.tsx
+- [x] Flags (50) — src/ui/Flag.tsx
+- [x] Leader faces — src/ui/Portrait.tsx
+- [x] Event pictures, confetti, red flash, count-up numbers — src/ui/Juice.tsx
+- [x] Images, music and sound picked by Kenneth (no real music tracks)

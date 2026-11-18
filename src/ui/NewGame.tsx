@@ -7,6 +7,7 @@ import { SaveMenu } from './SaveMenu';
 import { FAITHS, SYSTEM_RULES, FOCUSES, TRAITS } from '../data/people';
 import type { FaithId } from '../sim/types';
 import { countryLabel } from '../data/local-names';
+import { Flag } from './Flag';
 
 export function NewGame() {
   const { game, setWorldSize, startCareer } = useGame();
@@ -38,7 +39,7 @@ export function NewGame() {
             ))}
           </select>
         </label>
-        <p><strong>{sys.name}</strong>: {sys.signature}</p>
+        <p><Flag id={country.id} size={24} /> <strong>{sys.name}</strong>: {sys.signature}</p>
         <p className="small-text">{SYSTEM_RULES[country.systemId].rule}</p>
         <p className="small-text">Main faith: <b>{FAITHS[country.faith].name}</b> · How religious: {level}</p>
         <p className="small-text">Leader: <b>{ld.name}</b> · {ld.traits.map((t) => TRAITS[t].name).join(', ')} · Focus: {FOCUSES[ld.focus].name}</p>

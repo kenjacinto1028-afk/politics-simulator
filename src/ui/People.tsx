@@ -5,6 +5,7 @@ import { patronBlocker } from '../sim/systems';
 import { kindOf } from '../sim/offices';
 import type { Contact } from '../sim/types';
 import { Stat } from './Stat';
+import { Portrait } from './Portrait';
 
 function RelBar({ value }: { value: number }) {
   const v = Math.max(-100, Math.min(100, value));
@@ -35,7 +36,7 @@ function ContactCard({ c, systemId }: { c: Contact; systemId: string }) {
   const dealName = (kind && DEAL_NAME[kind]) || 'Joint deal';
   return (
     <div className="card">
-      <b>{c.name}</b>
+      <Portrait name={c.name} traits={c.traits} size={36} /> <b>{c.name}</b>
       {c.endorsed && <span className="badge good">Backing you</span>}
       {p.sys.patronId === c.id && <span className="badge good">Your patron</span>}
       <p className="muted small-text">{c.role} · {c.rung === -1 ? 'faith' : c.party === 'yours' ? 'your party' : 'rival party'}</p>

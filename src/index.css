@@ -148,3 +148,17 @@ button.action small.money { opacity: 0.9; }
 .dip details > summary::-webkit-details-marker { display: none; }
 .dip details > summary::before { content: '▸ '; }
 .dip details[open] > summary::before { content: '▾ '; }
+
+/* Flags, faces, event pictures and effects */
+.flag { vertical-align: middle; border-radius: 2px; flex-shrink: 0; }
+.portrait { vertical-align: middle; flex-shrink: 0; }
+.with-face { display: flex; gap: 10px; align-items: flex-start; }
+.mute { margin-left: 8px; padding: 2px 8px; font-size: 16px; min-height: 0; vertical-align: middle; }
+.event-art { height: 72px; border-radius: 8px; display: grid; place-items: center; margin-bottom: 10px; }
+.event-art span { font-size: 40px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.fx-flash { position: fixed; inset: 0; pointer-events: none; z-index: 200; background: radial-gradient(circle, rgba(255,40,40,0) 30%, rgba(255,40,40,.45)); animation: fx-flash .9s ease-out forwards; }
+@keyframes fx-flash { 0% { opacity: 0 } 15% { opacity: 1 } 100% { opacity: 0 } }
+.fx-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
+.fx-confetti i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; animation: fx-fall linear forwards; }
+@keyframes fx-fall { to { top: 105%; transform: rotate(720deg) translateX(40px); } }
+@media (prefers-reduced-motion: reduce) { .fx-flash, .fx-confetti { display: none; } }
