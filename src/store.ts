@@ -7,9 +7,12 @@ import type { CommitteeId } from './data/legislature-content';
 import { answerAsk, briefLeader, choosePortfolio, launchInitiative, mediaTour, requestBudget } from './sim/cabinet';
 import { courtParliament, declareWar, nationalAddress, proposeNationalLaw, repealNationalLaw, sanction, seekPeace, setNationalBudget, stateVisit, tradeDeal } from './sim/nation';
 import type { PortfolioId } from './data/cabinet-content';
+import { askEndorsement, faithOutreach, feud, jointDeal, meetContact } from './sim/people';
+import { buyback, callReferendum, choosePatron, consultCoalition, defyCapital, executiveOrder, lobbyCapital, negotiateUnions, payRespects, royalOccasion } from './sim/systems';
+import { foreignAid, formAlliance, hostSummit } from './sim/nation';
 import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
-import type { GameState, GroupId, Nation, OfficeId, Region, SpendKey } from './sim/types';
+import type { FaithId, GameState, GroupId, Nation, OfficeId, Region, SpendKey } from './sim/types';
 import type { WorldSize } from './data/countries';
 
 const kv = browserKV();
@@ -23,7 +26,25 @@ interface Store {
   saveRev: number;
   message: string | null;
   setWorldSize: (size: WorldSize) => void;
-  startCareer: (name: string, countryId: string) => void;
+  startCareer: (name: string, countryId: string, faith?: FaithId) => void;
+  meetContact: (id: string) => void;
+  askEndorsement: (id: string) => void;
+  jointDeal: (id: string) => void;
+  feud: (id: string) => void;
+  faithOutreach: () => void;
+  executiveOrder: (lawId: string) => void;
+  consultCoalition: () => void;
+  negotiateUnions: () => void;
+  royalOccasion: () => void;
+  choosePatron: (id: string) => void;
+  payRespects: () => void;
+  lobbyCapital: () => void;
+  defyCapital: () => void;
+  callReferendum: (lawId: string) => void;
+  buyback: () => void;
+  hostSummit: () => void;
+  foreignAid: (countryId: string) => void;
+  formAlliance: (countryId: string) => void;
   nextTurn: () => void;
   act: (a: CampaignAction) => void;
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
@@ -81,7 +102,25 @@ export const useGame = create<Store>((set, get) => ({
   saveRev: 0,
   message: null,
   setWorldSize: (size) => set({ game: newGame(size, freshSeed()) }),
-  startCareer: (name, countryId) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99)) })),
+  startCareer: (name, countryId, faith) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99), faith) })),
+  meetContact: (id) => set((s) => ({ game: meetContact(s.game, id, actionRng(s.game)) })),
+  askEndorsement: (id) => set((s) => ({ game: askEndorsement(s.game, id) })),
+  jointDeal: (id) => set((s) => ({ game: jointDeal(s.game, id) })),
+  feud: (id) => set((s) => ({ game: feud(s.game, id) })),
+  faithOutreach: () => set((s) => ({ game: faithOutreach(s.game, actionRng(s.game)) })),
+  executiveOrder: (id) => set((s) => ({ game: executiveOrder(s.game, id) })),
+  consultCoalition: () => set((s) => ({ game: consultCoalition(s.game, actionRng(s.game)) })),
+  negotiateUnions: () => set((s) => ({ game: negotiateUnions(s.game, actionRng(s.game)) })),
+  royalOccasion: () => set((s) => ({ game: royalOccasion(s.game, actionRng(s.game)) })),
+  choosePatron: (id) => set((s) => ({ game: choosePatron(s.game, id) })),
+  payRespects: () => set((s) => ({ game: payRespects(s.game, actionRng(s.game)) })),
+  lobbyCapital: () => set((s) => ({ game: lobbyCapital(s.game, actionRng(s.game)) })),
+  defyCapital: () => set((s) => ({ game: defyCapital(s.game) })),
+  callReferendum: (id) => set((s) => ({ game: callReferendum(s.game, id, actionRng(s.game)) })),
+  buyback: () => set((s) => ({ game: buyback(s.game) })),
+  hostSummit: () => set((s) => ({ game: hostSummit(s.game) })),
+  foreignAid: (id) => set((s) => ({ game: foreignAid(s.game, id) })),
+  formAlliance: (id) => set((s) => ({ game: formAlliance(s.game, id) })),
   nextTurn: () => {
     const g = get().game;
     if (blockingPrompt(g.player)) return;

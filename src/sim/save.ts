@@ -58,7 +58,7 @@ function migrateV5(g: GameState): GameState {
   if (!p) return next;
   const country = countries[p.countryId];
   const faith = p.faith ?? country.faith;
-  return { ...next, player: { ...p, faith, clergy: p.clergy ?? 50, contacts: p.contacts ?? newContacts(country, faith, makeRng(g.seed + 4)), sys: p.sys ?? newSystemState() } };
+  return { ...next, player: { ...p, faith, clergy: p.clergy ?? 50, contacts: p.contacts ?? newContacts(country, faith, makeRng(g.seed + 4)), sys: p.sys ?? newSystemState(), nation: p.nation && { ...p.nation, alliances: p.nation.alliances ?? [], lastSummitTurn: p.nation.lastSummitTurn ?? -99 } } };
 }
 
 /** v4 saves predate cabinet and head-of-state gameplay. */

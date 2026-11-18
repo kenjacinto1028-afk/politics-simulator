@@ -182,6 +182,8 @@ export interface Nation {
   parliament: { name: string; seats: number; yourParty: number; goodwill: number };
   laws: string[];
   tradeDeals: string[];
+  alliances: string[];
+  lastSummitTurn: number;
   war: { enemy: string; months: number; score: number } | null;
   lastAddressTurn: number;
   /** Builds up while you lead; shown when your career ends. */
