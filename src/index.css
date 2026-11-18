@@ -41,7 +41,7 @@ input[type=range] { display: block; width: 100%; box-sizing: border-box; margin:
 .news { padding-left: 18px; margin: 0; font-size: 14px; }
 .news li { margin: 4px 0; }
 .scroll { overflow-x: auto; }
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: grid; place-items: center; padding: 16px; }
+.modal { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.6); display: grid; place-items: center; padding: 16px; }
 .modal .panel { max-width: 520px; width: 100%; }
 .toast { background: #263055; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; cursor: pointer; }
 @media (max-width: 700px) {
@@ -81,3 +81,61 @@ button.action small.money { opacity: 0.9; }
 .relbar .fillrel { position: absolute; top: 0; bottom: 0; }
 .relbar .fillrel.up { background: #3fb36a; }
 .relbar .fillrel.down { background: #d0533f; }
+
+/* ---------- Phone ---------- */
+.bottombar { display: none; }
+@media (max-width: 760px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { font-size: 15px; line-height: 1.4; }
+  main { padding: 10px 12px calc(124px + env(safe-area-inset-bottom)); }
+  .grid { gap: 10px; }
+  .panel { padding: 12px; margin-bottom: 10px; }
+  button, button.small { min-height: 44px; padding: 10px 14px; font-size: 15px; }
+  button.small { min-height: 40px; padding: 8px 12px; font-size: 14px; margin-left: 0; }
+  .row, .actions { gap: 8px; }
+  .row { margin-top: 8px; }
+  input, select { min-height: 44px; font-size: 16px; box-sizing: border-box; margin-left: 0; }
+  input[type=range] { min-height: 32px; }
+  input[type=range]::-webkit-slider-thumb { width: 26px; height: 26px; }
+  input[type=range]::-moz-range-thumb { width: 26px; height: 26px; }
+  input[type=checkbox], input[type=radio] { min-height: 0; width: 22px; height: 22px; }
+  .muted, .small-text, .effects, .news, table, .step, .money-line, .tip, .poll { font-size: 14px; }
+  .action small, .badge, .tag, .kpis span { font-size: 13px; }
+  .action { width: 100%; align-items: flex-start; text-align: left; }
+  .actions > button { flex: 1 1 100%; }
+  .header { grid-template-columns: 1fr; gap: 6px; }
+  .header h2 { font-size: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; justify-content: stretch; }
+  .kpis div { align-items: center; text-align: center; background: #262a35; border-radius: 6px; padding: 6px 4px; }
+  .kpis b { font-size: 17px; }
+  .kpis span { line-height: 1.2; }
+  .cols, .card-grid { grid-template-columns: 1fr; gap: 12px; }
+  .stat, .stat.wide { grid-template-columns: 84px 1fr 32px; }
+  /* Grid and flex children default to min-width:auto and grow to fit wide tables; let them shrink so .scroll can scroll. */
+  .grid > *, .panel, .cols > *, .card-grid > * { min-width: 0; }
+  html, body { overflow-x: hidden; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .scroll table { min-width: 520px; }
+  .dip .scroll table { min-width: 0; }
+  .dip table, .dip tbody, .dip tr, .dip td { display: block; width: 100%; box-sizing: border-box; }
+  .dip thead { display: none; }
+  .dip tr { background: #262a35; border-radius: 6px; padding: 10px; margin: 0 0 10px; }
+  .dip td { border: 0; padding: 3px 0; }
+  .dip td:nth-child(3)::before { content: 'Relations: '; color: #9aa0ad; font-weight: normal; }
+  .dip .row button { flex: 1 1 calc(50% - 8px); }
+  .modal { place-items: end center; padding: 0; }
+  .modal .panel { max-width: none; width: 100%; max-height: 85vh; overflow-y: auto; box-sizing: border-box; margin: 0; border-radius: 14px 14px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .modal .actions { flex-direction: column; }
+  .modal .actions button { width: 100%; }
+  .bottombar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; background: #1a1d25; border-top: 1px solid #2c303b; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
+  .bottombar .tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 6px; }
+  .bottombar .tab { background: transparent; color: #9aa0ad; padding: 6px 2px; font-size: 14px; position: relative; }
+  .bottombar .tab.active { background: #2c303b; color: #fff; }
+  .bottombar .dot { position: absolute; top: 6px; right: 14px; width: 9px; height: 9px; border-radius: 50%; background: #ff6b5a; }
+  .bottombar .next { width: 100%; }
+  .grid > button.secondary { width: 100%; }
+  .toast { font-size: 14px; }
+  h1 { font-size: 24px; }
+  label { margin: 10px 0; }
+  label select, label input:not([type=range]):not([type=checkbox]):not([type=radio]) { width: 100%; margin-top: 4px; }
+}

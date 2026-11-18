@@ -143,7 +143,7 @@ function NationalLaws() {
   );
 }
 
-function Diplomacy() {
+export function Diplomacy() {
   const { game, stateVisit, tradeDeal, sanction, declareWar, seekPeace, hostSummit, foreignAid, formAlliance } = useGame();
   const blocked = useBlocked();
   const p = game.player!;
@@ -151,7 +151,7 @@ function Diplomacy() {
   const others = Object.values(game.countries).filter((c) => c.id !== p.countryId);
   const war = n.war ? game.countries[n.war.enemy] : null;
   return (
-    <div className="panel">
+    <div className="panel dip">
       <h3>Diplomacy</h3>
       {n.war && war && (
         <div className="card">
@@ -197,7 +197,7 @@ function Diplomacy() {
   );
 }
 
-export function Nation() {
+export function Nation({ part = 'all' }: { part?: 'all' | 'job' } = {}) {
   const { game } = useGame();
   const n = game.player!.nation;
   if (!n) return null;
@@ -207,7 +207,7 @@ export function Nation() {
       <BudgetPanel key={game.turn} nation={n} />
       <Parliament />
       <NationalLaws />
-      <Diplomacy />
+      {part === 'all' && <Diplomacy />}
       <div className="panel">
         <h3>Your legacy</h3>
         <p><b>{Math.round(n.legacy)}</b> points <span className="muted">(grows while you lead well)</span></p>
