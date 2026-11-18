@@ -7,7 +7,8 @@
 
 ## Design
 - 1 turn = 1 month. Player nation = detailed sim (cities/regions, budget, parties, laws, media). Others = high-level stats (GDP, growth, approval, stability, relations).
-- **Political systems** are shared templates (presidential, parliamentary, semi-presidential, constitutional monarchy, one-party). Each defines the career ladder, term length/limits, electoral freedom.
+- **8 political systems**, shared templates: presidential, parliamentary, semi-presidential, constitutional monarchy, one-party, federal (strong states), direct democracy (referendums + rotating council), corporate state (fantasy; shareholder votes). Each defines ladder, terms, electoral freedom, how you advance (election/appointment/shares).
+- **World sizes:** 10 (test), 15, 25 (standard), 35, 50 (realistic). The first 10 cover all 8 systems.
 - Countries: real (fictionalized leaders) + fantasy.
 - Career: Mayor → … → head of state/government per system. Each office has distinct powers, decisions, and events.
 

@@ -1,6 +1,11 @@
 // Core domain types. Player nation is simulated in detail; others at a high level.
 
-export type SystemId = 'presidential' | 'parliamentary' | 'semi-presidential' | 'constitutional-monarchy' | 'one-party';
+export type SystemId =
+  | 'presidential' | 'parliamentary' | 'semi-presidential' | 'constitutional-monarchy' | 'one-party'
+  | 'federal' | 'direct-democracy' | 'corporate-state';
+
+/** How you climb: winning votes, party loyalty, or buying shares. */
+export type AdvancementMode = 'election' | 'appointment' | 'shares';
 
 export interface PoliticalSystem {
   id: SystemId;
@@ -11,9 +16,17 @@ export interface PoliticalSystem {
   termLimit: number | null;
   /** 0..1 — how free/fair elections are. */
   electoralFreedom: number;
+  advancement: AdvancementMode;
+  /** One-line hook that makes this system play differently. */
+  signature: string;
+  fantasyOnly?: boolean;
 }
 
-export type OfficeId = 'mayor' | 'governor' | 'legislator' | 'minister' | 'prime-minister' | 'vice-president' | 'president' | 'party-secretary';
+export type OfficeId =
+  | 'mayor' | 'governor' | 'legislator' | 'minister' | 'prime-minister' | 'vice-president' | 'president' | 'party-secretary'
+  | 'state-legislator' | 'senator'
+  | 'cantonal-councillor' | 'federal-councillor' | 'council-president'
+  | 'district-director' | 'board-member' | 'executive-director' | 'chairman';
 
 export interface Economy {
   gdpBn: number;          // nominal GDP, billions USD
@@ -48,6 +61,7 @@ export interface Player {
 
 export interface GameState {
   turn: number;        // 1 turn = 1 month
+  worldSize: number;
   year: number;
   month: number;       // 1..12
   player: Player | null;

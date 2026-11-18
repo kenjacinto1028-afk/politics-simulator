@@ -1,11 +1,11 @@
-import { seedCountries } from '../data/countries';
+import { seedCountries, type WorldSize } from '../data/countries';
 import type { Country, GameState } from './types';
 import type { Rng } from './rng';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function newGame(): GameState {
-  return { turn: 0, year: 2026, month: 1, player: null, countries: seedCountries(), log: ['The world awaits.'] };
+export function newGame(worldSize: WorldSize = 25): GameState {
+  return { turn: 0, year: 2026, month: 1, worldSize, player: null, countries: seedCountries(worldSize), log: ['The world awaits.'] };
 }
 
 /** High-level monthly drift for any country. Detailed sim for the player nation comes later. */

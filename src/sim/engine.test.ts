@@ -21,3 +21,21 @@ describe('engine', () => {
     expect(a).toEqual(b);
   });
 });
+
+import { WORLD_SIZES, seedCountries } from '../data/countries';
+import { SYSTEMS } from '../data/systems';
+
+describe('world setup', () => {
+  it('builds each world size with exactly N unique countries', () => {
+    for (const n of WORLD_SIZES) expect(Object.keys(seedCountries(n))).toHaveLength(n);
+  });
+  it('smallest world includes every political system', () => {
+    const used = new Set(Object.values(seedCountries(10)).map((c) => c.systemId));
+    expect(used.size).toBe(Object.keys(SYSTEMS).length);
+  });
+  it('fantasy-only systems are used only by fantasy nations', () => {
+    for (const c of Object.values(seedCountries(50))) {
+      if (SYSTEMS[c.systemId].fantasyOnly) expect(c.fantasy).toBe(true);
+    }
+  });
+});

@@ -1,4 +1,5 @@
 import { useGame } from '../store';
+import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
 
 const fmt = (n: number, d = 1) => n.toFixed(d);
 
@@ -10,7 +11,7 @@ export function Dashboard() {
     <div className="grid">
       <div className="panel">
         <h2>{p.name}</h2>
-        <p>{home.name} · {p.office ?? 'Candidate for Mayor'}</p>
+        <p>{home.name} · {p.office ? OFFICE_NAMES[p.office] : `Candidate for ${OFFICE_NAMES[SYSTEMS[home.systemId].ladder[0]]}`}</p>
         <p>Popularity {p.popularity} · Funds ${p.funds}k · Age {p.age}</p>
         <p>{game.year}-{String(game.month).padStart(2, '0')}</p>
         <button onClick={nextTurn}>Next month</button>
