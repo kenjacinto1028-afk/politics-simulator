@@ -88,3 +88,10 @@
 - [x] 40 score-triggered events (Sonnet) — src/data/society-events.ts, EventDef.when
 - [x] UI — country scores panel (World tab, all levels), Policies panel (leader), spy buttons; save v8 migration
 - [x] Tested — 100 tests, fuzz incl. policies/spying, 43 old saves clicked through, phone layout
+
+## End game and career scores (branch feat/endgame)
+- [x] Endings: retire at 75, leave top office, removal, 8 years without office, Retire now — src/sim/history.ts (Opus)
+- [x] Career score (office, years, elections, popularity, country change, legacy, wars, scandals, removal) and rank S–E with titles
+- [x] History: key moments timeline + yearly snapshots, recorded each month in advanceMonth
+- [x] UI: end report card with chart, Career so far (More tab), Hall of Fame on main menu (browser storage, top 30)
+- [x] Tested — 105 tests, browser retire flow desktop + phone

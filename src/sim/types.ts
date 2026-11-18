@@ -142,6 +142,40 @@ export interface Player {
   termsInOffice: number;
   /** Highest ladder index ever held, -1 if none. Sets which offices a comeback can target. */
   highestRung: number;
+  /** The story of this career, for the score and the history screen. */
+  history?: CareerHistory;
+}
+
+export interface Moment { turn: number; date: string; kind: 'office' | 'election' | 'war' | 'policy' | 'scandal' | 'end'; text: string }
+export interface YearSnap {
+  year: number; age: number; office: OfficeId | null; rung: number; popularity: number;
+  gdpBn: number; growth: number; stability: number; health: number; education: number; crime: number;
+}
+export interface CareerHistory {
+  moments: Moment[];
+  years: YearSnap[];
+  monthsByOffice: Partial<Record<OfficeId, number>>;
+  /** Newest log line already read. */
+  logMark: string;
+  startYear: number;
+  startTurn: number;
+  /** Months in a row without office. */
+  monthsOut: number;
+  scandals: number;
+  warsWon: number;
+  warsLost: number;
+  removed: boolean;
+  endReason?: string;
+  /** Country scores when you first led it, and now. */
+  leaderStart?: Record<string, number>;
+  leaderEnd?: Record<string, number>;
+}
+export interface RunSummary {
+  id: string; name: string; countryId: string; countryName: string; systemId: SystemId;
+  startYear: number; endYear: number; age: number; highestOffice: string;
+  score: number; grade: string; title: string; lines: { label: string; points: number }[];
+  endReason: string; record: { won: number; lost: number };
+  moments: Moment[]; years: YearSnap[]; finishedAt: string;
 }
 
 export interface Rival { name: string; party: string; popularity: number; funds: number }

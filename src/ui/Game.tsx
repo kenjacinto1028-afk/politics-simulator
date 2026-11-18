@@ -1,3 +1,4 @@
+import { CareerSoFar } from './Career';
 import { CountryScores } from './Society';
 import { WorldPower } from './WorldPower';
 import { TIERS, tierOf } from '../sim/geo';
@@ -244,6 +245,7 @@ export function Game() {
         )}
       </div>}
 
+      {on('more') && <CareerSoFar />}
       {on('more') && <SaveMenu canSave />}
       {phone && tab === 'more' && <button className="secondary" onClick={quitToMenu}>Main menu</button>}
 

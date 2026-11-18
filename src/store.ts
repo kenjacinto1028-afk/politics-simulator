@@ -13,6 +13,8 @@ import { foreignAid, formAlliance, hostSummit } from './sim/nation';
 import { answerAlly, armsDeal, askAlly, backSide, inviteToBloc, joinBloc, leaveBloc } from './sim/geo';
 import type { BlocId } from './data/geo';
 import { setPolicy, spyOp } from './sim/society';
+import { addRun, loadRuns, retireNow, summarize } from './sim/history';
+import type { RunSummary } from './sim/types';
 import type { PolicyId } from './data/society';
 import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
@@ -59,6 +61,8 @@ interface Store {
   inviteToBloc: (countryId: string) => void;
   backSide: (countryId: string, side: 'gov' | 'rebel') => void;
   nextTurn: () => void;
+  retireNow: () => void;
+  runs: RunSummary[];
   act: (a: CampaignAction) => void;
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
   resolveEvent: (i: number) => void;
@@ -148,8 +152,15 @@ export const useGame = create<Store>((set, get) => ({
     if (blockingPrompt(g.player)) return;
     const game = advanceMonth(g, rngFor(g));
     if (kv) saveTo(kv, 'autosave', game);
-    set((s) => ({ game, saveRev: s.saveRev + 1 }));
+    const runs = game.player?.retired ? addRun(kv, summarize(game)) : get().runs;
+    set((s) => ({ game, runs, saveRev: s.saveRev + 1 }));
   },
+  retireNow: () => {
+    const game = retireNow(get().game);
+    if (kv) saveTo(kv, 'autosave', game);
+    set((s) => ({ game, runs: game.player?.retired ? addRun(kv, summarize(game)) : s.runs, saveRev: s.saveRev + 1 }));
+  },
+  runs: loadRuns(kv),
   act: (a) => set((s) => ({ game: doAction(s.game, a, actionRng(s.game)) })),
   setBudget: (t, sp) => set((s) => ({ game: setBudget(s.game, t, sp) })),
   resolveEvent: (i) => set((s) => ({ game: resolveEvent(s.game, i) })),
