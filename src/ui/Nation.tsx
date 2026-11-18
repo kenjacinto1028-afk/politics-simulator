@@ -1,3 +1,5 @@
+import { DataTable, type Column } from './DataTable';
+import type { Country } from '../sim/types';
 import { useState } from 'react';
 import { useGame } from '../store';
 import { NATIONAL_LAWS, PRIORITY_LABEL, type NationalPriority } from '../data/nation-content';
@@ -157,6 +159,42 @@ export function Diplomacy() {
   const n = p.nation!;
   const others = Object.values(game.countries).filter((c) => c.id !== p.countryId);
   const war = n.war ? game.countries[n.war.enemy] : null;
+  const cols: Column<Country>[] = [
+    { key: 'country', label: 'Country', sort: (c) => countryLabel(c), filter: (c) => `${countryLabel(c)} ${BLOCS[c.bloc].name} ${TIERS[tierOf(c)].name}`, render: (c) => {
+      const dealt = n.tradeDeals.includes(c.id);
+      return <><Flag id={c.id} size={14} /> {countryLabel(c)} <span className="badge">{TIERS[tierOf(c)].name}</span><br /><span className="muted small-text">{BLOCS[c.bloc].name} · army {Math.round(c.military)}{c.nuclear ? ' · nuclear' : ''} · exports {RESOURCES[c.resource].name.toLowerCase()}</span>{dealt && <span className="pos small-text"> trade deal</span>}{n.alliances.includes(c.id) && <span className="badge good">Ally</span>}</>;
+    } },
+    { key: 'leader', label: 'Leader', className: 'small-text', sort: (c) => c.leader.name, filter: (c) => c.leader.name, render: (c) => <>
+                <LeaderLink id={c.id} />{c.junta && <span className="badge warn">Military rule</span>}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}{c.decisions?.[0] && <><br />Latest: {c.decisions[0]}</>}</span>
+</> },
+    { key: 'rel', label: 'Relations', sort: (c) => relationWith(game, c.id), render: (c) => { const rel = relationWith(game, c.id); return <span className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</span>; } },
+    { key: 'actions', label: 'Actions', render: (c) => {
+              const rel = relationWith(game, c.id);
+              const dealt = n.tradeDeals.includes(c.id);
+              const canTrade = !dealt && rel >= TRADE_MIN_RELATION;
+              const shield = nuclearShield(game, c.id);
+              const canWar = !n.war && rel <= WAR_MAX_RELATION && !shield;
+              const armsWhy = armsBlocker(game, c.id);
+              const inviteWhy = inviteBlocker(game, c.id);
+              const showInvite = inviteWhy !== 'Only the bloc leader can invite' && inviteWhy !== 'You are not in a bloc' && inviteWhy !== 'Already a member';
+      return (
+        <details>
+                    <summary>Actions</summary>
+                    <div className="row">
+                      <button className="small" disabled={blocked} onClick={() => stateVisit(c.id)}>State visit</button>
+                      <button className="small" disabled={blocked || !canTrade} title={dealt ? 'Already signed' : `Needs relations of ${TRADE_MIN_RELATION}+`} onClick={() => tradeDeal(c.id)}>Trade deal</button>
+                      <button className="small" disabled={blocked} title="$10bn, +12 relations" onClick={() => foreignAid(c.id)}>Foreign aid</button>
+                      <button className="small" disabled={blocked || !!allianceBlocker(game, c.id)} title={allianceBlocker(game, c.id) ?? 'Defense pact'} onClick={() => formAlliance(c.id)}>Alliance{allianceBlocker(game, c.id) && !n.alliances.includes(c.id) ? ` (${allianceBlocker(game, c.id)})` : ''}</button>
+                      {!armsWhy && <button className="small" disabled={blocked} title={`$${armsCost(game.countries[p.countryId])}bn, stronger army`} onClick={() => armsDeal(c.id)}>Buy arms</button>}
+                      {showInvite && <button className="small" disabled={blocked || !!inviteWhy} title={inviteWhy ?? 'Bring them into your bloc'} onClick={() => inviteToBloc(c.id)}>Invite to bloc{inviteWhy ? ` (${inviteWhy})` : ''}</button>}
+                      <button className="small secondary" disabled={blocked} onClick={() => sanction(c.id)}>Sanction</button>
+                      <SpyRow target={c.id} />
+                      <button className="small secondary" disabled={blocked || !canWar} title={n.war ? 'You are already at war' : shield ?? `Needs relations of ${WAR_MAX_RELATION} or worse`} onClick={() => declareWar(c.id)}>Declare war{shield ? ' (nuclear deterrence)' : ''}</button>
+                    </div>
+                    </details>
+      );
+    } },
+  ];
   return (
     <div className="panel dip">
       <h3>Diplomacy</h3>
@@ -172,46 +210,13 @@ export function Diplomacy() {
       <div className="row">
         <button className="action" disabled={blocked || !canHostSummit(game)} onClick={hostSummit}>Host summit<small>{canHostSummit(game) ? '$5bn · everyone warms to you' : `Once every ${SUMMIT_COOLDOWN} months (${Math.max(1, SUMMIT_COOLDOWN - (game.turn - n.lastSummitTurn))} to go)`}</small></button>
       </div>
-      <div className="scroll">
-        <table>
-          <thead><tr><th>Country</th><th>Leader</th><th>Relations</th><th>Actions</th></tr></thead>
-          <tbody>
-            {others.map((c) => {
-              const rel = relationWith(game, c.id);
-              const dealt = n.tradeDeals.includes(c.id);
-              const canTrade = !dealt && rel >= TRADE_MIN_RELATION;
-              const shield = nuclearShield(game, c.id);
-              const canWar = !n.war && rel <= WAR_MAX_RELATION && !shield;
-              const armsWhy = armsBlocker(game, c.id);
-              const inviteWhy = inviteBlocker(game, c.id);
-              const showInvite = inviteWhy !== 'Only the bloc leader can invite' && inviteWhy !== 'You are not in a bloc' && inviteWhy !== 'Already a member';
-              return (
-                <tr key={c.id}>
-                  <td><Flag id={c.id} size={14} /> {countryLabel(c)} <span className="badge">{TIERS[tierOf(c)].name}</span><br /><span className="muted small-text">{BLOCS[c.bloc].name} · army {Math.round(c.military)}{c.nuclear ? ' · nuclear' : ''} · exports {RESOURCES[c.resource].name.toLowerCase()}</span>{dealt && <span className="pos small-text"> trade deal</span>}{n.alliances.includes(c.id) && <span className="badge good">Ally</span>}</td>
-                  <td className="small-text"><LeaderLink id={c.id} />{c.junta && <span className="badge warn">Military rule</span>}<br /><span className="muted">{c.leader.traits.map((t) => TRAITS[t].name).join(', ')}{c.decisions?.[0] && <><br />Latest: {c.decisions[0]}</>}</span></td>
-                  <td className={rel >= 30 ? 'pos' : rel <= -30 ? 'neg' : ''}>{Math.round(rel)}</td>
-                  <td>
-                    <details>
-                    <summary>Actions</summary>
-                    <div className="row">
-                      <button className="small" disabled={blocked} onClick={() => stateVisit(c.id)}>State visit</button>
-                      <button className="small" disabled={blocked || !canTrade} title={dealt ? 'Already signed' : `Needs relations of ${TRADE_MIN_RELATION}+`} onClick={() => tradeDeal(c.id)}>Trade deal</button>
-                      <button className="small" disabled={blocked} title="$10bn, +12 relations" onClick={() => foreignAid(c.id)}>Foreign aid</button>
-                      <button className="small" disabled={blocked || !!allianceBlocker(game, c.id)} title={allianceBlocker(game, c.id) ?? 'Defense pact'} onClick={() => formAlliance(c.id)}>Alliance{allianceBlocker(game, c.id) && !n.alliances.includes(c.id) ? ` (${allianceBlocker(game, c.id)})` : ''}</button>
-                      {!armsWhy && <button className="small" disabled={blocked} title={`$${armsCost(game.countries[p.countryId])}bn, stronger army`} onClick={() => armsDeal(c.id)}>Buy arms</button>}
-                      {showInvite && <button className="small" disabled={blocked || !!inviteWhy} title={inviteWhy ?? 'Bring them into your bloc'} onClick={() => inviteToBloc(c.id)}>Invite to bloc{inviteWhy ? ` (${inviteWhy})` : ''}</button>}
-                      <button className="small secondary" disabled={blocked} onClick={() => sanction(c.id)}>Sanction</button>
-                      <SpyRow target={c.id} />
-                      <button className="small secondary" disabled={blocked || !canWar} title={n.war ? 'You are already at war' : shield ?? `Needs relations of ${WAR_MAX_RELATION} or worse`} onClick={() => declareWar(c.id)}>Declare war{shield ? ' (nuclear deterrence)' : ''}</button>
-                    </div>
-                    </details>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={others}
+        columns={cols}
+        rowKey={(c) => c.id}
+        filterPlaceholder="Filter by country, leader, bloc"
+        extraFilter={{ label: 'Relations', options: [{ value: 'good', label: 'Friendly (30+)' }, { value: 'bad', label: 'Hostile (-30 or less)' }, { value: 'trade', label: 'Can sign trade deal' }, { value: 'allies', label: 'Allies' }], test: (c, v) => { const r = relationWith(game, c.id); return v === 'good' ? r >= 30 : v === 'bad' ? r <= -30 : v === 'allies' ? n.alliances.includes(c.id) : !n.tradeDeals.includes(c.id) && r >= TRADE_MIN_RELATION; } }}
+      />
       <p className="muted small-text">Trade deals need relations of {TRADE_MIN_RELATION}+. War needs relations of {WAR_MAX_RELATION} or worse. Sanctions hurt relations and end trade deals. Trade deals bring in the partner's exports: oil cuts inflation, food adds stability, technology and minerals add growth, factories add jobs. Big powers win wars more easily, and nuclear powers can't be invaded.</p>
     </div>
   );

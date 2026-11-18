@@ -61,11 +61,31 @@ export function Cities() {
   const { game, visitCity, grantCity } = useGame();
   const r = game.player!.region!;
   const blocked = useBlocked();
+  const [q, setQ] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'population' | 'happiness' | 'relation' | 'name'>('default');
+  const needle = q.trim().toLowerCase();
+  const shown = r.cities
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => !needle || `${c.name} ${c.mayor}`.toLowerCase().includes(needle))
+    .sort((a, b) => sortBy === 'population' ? b.c.population - a.c.population : sortBy === 'happiness' ? b.c.happiness - a.c.happiness : sortBy === 'relation' ? b.c.mayorRelationship - a.c.mayorRelationship : sortBy === 'name' ? a.c.name.localeCompare(b.c.name) : 0);
   return (
     <div className="panel">
       <h3>Cities</h3>
+      {r.cities.length > 6 && (
+        <div className="table-tools">
+          <input type="search" value={q} placeholder="Filter by city or mayor" aria-label="Filter cities" onChange={(e) => setQ(e.target.value)} />
+          <select aria-label="Sort cities" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+            <option value="default">Sort: default</option>
+            <option value="population">Sort: population</option>
+            <option value="happiness">Sort: happiness</option>
+            <option value="relation">Sort: works with you</option>
+            <option value="name">Sort: name</option>
+          </select>
+          <span className="count">{shown.length} of {r.cities.length}</span>
+        </div>
+      )}
       <div className="card-grid">
-        {r.cities.map((c, i) => (
+        {shown.map(({ c, i }) => (
           <div key={c.name} className="card">
             <b>{c.name}</b> {c.home && <span className="pos small-text">Home</span>}
             <p className="muted small-text">pop. {popText(c.population)} · Mayor {c.mayor}</p>

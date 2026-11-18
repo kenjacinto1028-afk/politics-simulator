@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useGame } from '../store';
 import { FAITHS, FOCUSES, TRAITS } from '../data/people';
 import { endorseBlocker, dealBlocker, currentRung, visibleContacts } from '../sim/people';
@@ -59,11 +60,18 @@ function ContactCard({ c, systemId }: { c: Contact; systemId: string }) {
 
 export function People() {
   const { game } = useGame();
+  const [q, setQ] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'relation' | 'name'>('default');
   const p = game.player!;
   if (p.retired) return null;
   const systemId = game.countries[p.countryId].systemId;
   const rung = currentRung(game);
-  const all = visibleContacts(game);
+  const everyone = visibleContacts(game);
+  const needle = q.trim().toLowerCase();
+  const all = everyone
+    .filter((c) => !needle || `${c.name} ${c.role} ${c.party === 'yours' ? 'your party' : 'rival party'}`.toLowerCase().includes(needle))
+    .slice()
+    .sort((a, b) => (sortBy === 'relation' ? b.relation - a.relation : sortBy === 'name' ? a.name.localeCompare(b.name) : 0));
   const groups: [string, Contact[]][] = [
     ['At your level', all.filter((c) => c.rung >= 0 && c.rung === rung)],
     ['Above you', all.filter((c) => c.rung > rung)],
@@ -74,6 +82,17 @@ export function People() {
     <div className="panel">
       <h3>Politicians</h3>
       <p className="muted small-text">Build friendships, ask for backing in campaigns, sign deals with peers. Each costs an action. Attacking someone pleases your base but makes an enemy.</p>
+      {everyone.length > 6 && (
+        <div className="table-tools">
+          <input type="search" value={q} placeholder="Filter by name, role or party" aria-label="Filter politicians" onChange={(e) => setQ(e.target.value)} />
+          <select aria-label="Sort politicians" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+            <option value="default">Sort: default</option>
+            <option value="relation">Sort: best relation</option>
+            <option value="name">Sort: name</option>
+          </select>
+          <span className="count">{all.length} of {everyone.length}</span>
+        </div>
+      )}
       {groups.map(([title, list]) => list.length > 0 && (
         <div key={title}>
           <h4>{title}</h4>

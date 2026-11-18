@@ -129,9 +129,9 @@
 - [x] Fix twin city achievement — pact via politician deal + event now count; panel shows earned badges (achievements.ts, people.ts, Extras.tsx)
 - [x] Playtime counter (total + per save) — src/sim/playtime.ts, App.tsx ticker, save slot labels, NewGame total
 - [x] New game name: Mandate — index.html, NewGame.tsx, README
-- [ ] High-contrast colors and buttons
+- [x] High-contrast colors and buttons — src/index.css palette vars (Sonnet)
 - [ ] Tabs + sub-tabs, sticky Next month / Menu bar
-- [ ] Filters + sorting on all tables
+- [x] Filters + sorting on all tables — src/ui/DataTable.tsx, WorldTable.tsx, Nation/People/Governor lists (Sonnet); wire WorldTable in Game.tsx with tabs step
 - [ ] Home region support
 - [ ] Player traits + how politicians see you
 - [ ] Scandals (donor favors and more)
