@@ -36,7 +36,7 @@ export function CareerReport({ run, live = false }: { run: RunSummary; live?: bo
       <p><b>{run.score}</b> points{live ? ' so far' : ''} · {run.highestOffice} · {run.countryName} · {run.startYear} to {run.endYear}{!live && <> · {run.endReason}</>}</p>
       <table>
         <tbody>
-          {run.lines.map((l) => <tr key={l.label}><td>{l.label}</td><td className={l.points < 0 ? 'neg' : 'pos'} style={{ textAlign: 'right' }}>{l.points > 0 ? '+' : ''}{l.points}</td></tr>)}
+          {run.lines.map((l) => <tr key={l.label}><td>{l.label}</td><td className={l.points < 0 ? 'neg' : 'pos'} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{l.points > 0 ? '+' : ''}{l.points}</td></tr>)}
         </tbody>
       </table>
       <h4>Over the years</h4>
