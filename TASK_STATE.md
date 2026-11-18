@@ -137,4 +137,5 @@
 - [x] Scandals (engine) — src/sim/scandals.ts: donor strings, favors due, blackmail, exposure, attack ads
 - [x] Event choices trade-offs + middle ground/side deal/put off — src/sim/choices.ts; tests scandals.test.ts (136 pass)
 - [x] Screens: You tab (reputation, home support, scandal risk), event notes, hometown action — src/ui/You.tsx, effects.tsx EffectLines
-- [ ] Tests, phone + computer check, PR
+- [x] Tests (136), lint, build, phone + computer browser check — screenshots in project files screenshots/polish
+- [ ] PR
