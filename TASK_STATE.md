@@ -29,3 +29,9 @@
 - [x] Governor engine: state, cities, legislature, bills, laws, events — src/sim/governor.ts, src/data/state-content.ts
 - [x] Governor UI (Sonnet) — src/ui/Governor.tsx
 - [x] Tests (29), browser check, play link v3, push
+
+## Lawmaker + funds tracker (branch feat/save-load-mayor)
+- [x] Legislator engine: floor votes, own bills, committees, district funding, party revenge — src/sim/legislator.ts, src/data/legislature-content.ts
+- [x] Balance + tests (33) — src/sim/legislator.test.ts
+- [x] Lawmaker UI + funds tracker (Sonnet) — src/ui/Legislator.tsx, money.ts, Game.tsx, Governor.tsx, Projects.tsx
+- [x] Browser check (mayor, governor, senator saves), play link v4, push

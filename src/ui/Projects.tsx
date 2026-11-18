@@ -2,6 +2,7 @@ import { useGame } from '../store';
 import { PROJECTS } from '../data/city-content';
 import { canPropose, forecast } from '../sim/mayor';
 import { Effects, Forecast } from './effects';
+import { k } from './money';
 
 export function Projects() {
   const { game, proposeProject } = useGame();
@@ -36,6 +37,7 @@ export function Projects() {
               <b>{proj.name}</b>
               <p className="muted small-text">{proj.blurb}</p>
               <p className="small-text">${proj.cost}k from treasury · {proj.months} months</p>
+              <p className="small-text">Treasury after: <b className={city.treasury - proj.cost < 0 ? 'neg' : ''}>{k(city.treasury - proj.cost)}</b></p>
               <Effects stats={proj.stats} groups={proj.groups} />
               <Forecast yes={forecast(city, proj).likelyYes} />
               <button className="small" disabled={!!reason || blocked} onClick={() => proposeProject(proj.id)}>Propose</button>

@@ -5,6 +5,7 @@ import { GRANT_COST, billById, canGiveAddress, forecastLaw, regionPopulation, re
 import type { Region } from '../sim/types';
 import { Effects } from './effects';
 import { Stat } from './Stat';
+import { k } from './money';
 
 const n0 = (n: number) => Math.round(n).toString();
 const popText = (k: number) => (k >= 1000 ? `${(k / 1000).toFixed(1)}M` : `${n0(k)}k`);
@@ -73,6 +74,7 @@ export function Cities() {
             <div className="row">
               <button className="small" disabled={blocked} onClick={() => visitCity(i)}>Tour city</button>
               <button className="small secondary" disabled={blocked || r.treasury < GRANT_COST} onClick={() => grantCity(i)}>Send grant (${GRANT_COST}k)</button>
+            <p className="muted small-text">Treasury after: {k(r.treasury - GRANT_COST)}</p>
             </div>
           </div>
         ))}
@@ -146,15 +148,21 @@ export function BillModal() {
   const { game, decideBill } = useGame();
   const bill = billById(game.player!.region!.pendingBill);
   if (!bill) return null;
+  const r = game.player!.region!;
+  const change = (rev?: number) => (rev ? Math.round(rev * regionRevenue(r) * 12) : 0);
+  const money = (rev?: number) => (rev ? <p className={`small-text ${change(rev) < 0 ? 'neg' : 'pos'}`}>State treasury {k(r.treasury)} → {k(r.treasury + change(rev))}</p> : null);
   return (
     <div className="modal">
       <div className="panel">
         <h3>Bill on your desk: {bill.title}</h3>
         <p>{bill.text}</p>
+        <p className="money-line">State treasury: {k(r.treasury)}</p>
         <p className="small-text"><b>If you sign it</b></p>
         <Effects stats={bill.sign.stats} groups={bill.sign.groups} revenue={bill.sign.revenue} />
+        {money(bill.sign.revenue)}
         <p className="small-text"><b>If you veto it</b></p>
         <Effects stats={bill.veto.stats} groups={bill.veto.groups} revenue={bill.veto.revenue} />
+        {money(bill.veto.revenue)}
         <p className="muted small-text">Vetoing costs goodwill with the legislature.</p>
         <div className="actions">
           <button onClick={() => decideBill(true)}>Sign it</button>

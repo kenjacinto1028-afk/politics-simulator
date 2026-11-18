@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
 import { ACTION_INFO, STANDING_LABEL, availableActions, comebackOptions } from '../sim/career';
-import { cityRevenue } from '../sim/city';
+import { RESERVE_RATE, cityRevenue } from '../sim/city';
+import { regionRevenue } from '../sim/governor';
 import type { City, SpendKey } from '../sim/types';
 import { campaignTip } from '../sim/mayor';
 import { SaveMenu } from './SaveMenu';
@@ -13,6 +14,8 @@ import { Projects } from './Projects';
 import { Laws } from './Laws';
 import { HigherOffice } from './HigherOffice';
 import { kindOf } from '../sim/offices';
+import { Legislator, VoteModal } from './Legislator';
+import { k, moneyChange, treasuryOf } from './money';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 
 const n0 = (n: number) => Math.round(n).toString();
@@ -52,8 +55,18 @@ export function Game() {
   const kind = kindOf(p.office);
   const governor = kind === 'regional' && !!p.region;
   const bill = !!p.region?.pendingBill;
+  const lawmaker = kind === 'legislative' && !!p.seat;
+  const voting = !!p.seat?.pendingVote;
+  function kpiMoney(): { label: string; value: number; perMonth?: number } | null {
+    if (lawmaker) return { label: 'District funding won', value: p.seat!.districtFunding };
+    if (governor) return { label: 'State treasury', value: p.region!.treasury, perMonth: regionRevenue(p.region!) * RESERVE_RATE };
+    if (kind === 'local' && city && p.office) return { label: 'City treasury', value: city.treasury, perMonth: cityRevenue(city) * RESERVE_RATE };
+    return null;
+  }
   const actions = availableActions(sys.advancement, !!c, !!p.office, kind === 'local');
-  const title = p.office ? `${OFFICE_NAMES[p.office]} of ${governor ? p.region!.name : city?.name}` : c ? `Candidate for ${OFFICE_NAMES[c.office]}` : 'Out of office';
+  const money = kpiMoney();
+  const where = governor ? ` of ${p.region!.name}` : kindOf(p.office) === 'legislative' && p.seat ? `, ${p.seat.chamber}` : kindOf(p.office) === 'local' ? ` of ${city?.name}` : '';
+  const title = p.office ? `${OFFICE_NAMES[p.office]}${where}` : c ? `Candidate for ${OFFICE_NAMES[c.office]}` : 'Out of office';
 
   return (
     <div className="grid">
@@ -68,12 +81,13 @@ export function Game() {
         </div>
         <div className="kpis">
           <div><b>{n0(p.popularity)}</b><span>Popularity</span></div>
-          <div><b>${n0(p.funds)}k</b><span>Funds</span></div>
+          <div><b>${n0(p.funds)}k</b><span>Campaign funds</span></div>
+          {money && <div><b className={money.value < 0 ? 'neg' : ''}>{k(money.value)}</b><span>{money.label}{money.perMonth !== undefined && ` (+${k(money.perMonth)}/mo)`}</span></div>}
           <div><b>{n0(p.loyalty)}</b><span>{STANDING_LABEL[sys.advancement]}</span></div>
           <div><b>{p.actionsLeft}</b><span>Actions</span></div>
         </div>
         <div className="row">
-          <button onClick={nextTurn} disabled={!!p.pendingEvent || bill}>Next month →</button>
+          <button onClick={nextTurn} disabled={!!p.pendingEvent || bill || voting}>Next month →</button>
           <button className="secondary small" onClick={quitToMenu}>Main menu</button>
         </div>
       </div>
@@ -108,7 +122,7 @@ export function Game() {
             const info = ACTION_INFO[a];
             const locked = a === 'debate' && (!c || c.monthsLeft > 2);
             return (
-              <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent || bill} onClick={() => act(a)}>
+              <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent || bill || voting} onClick={() => act(a)}>
                 {info.label}<small>{info.hint}{info.cost ? ` · $${info.cost}k` : ''}</small>
               </button>
             );
@@ -127,7 +141,9 @@ export function Game() {
         </>
       )}
 
-      {!governor && city && (
+      {lawmaker && <Legislator />}
+
+      {!governor && !lawmaker && city && (
         <div className="panel">
           <h3>{city.name} <span className="muted">pop. {n0(city.population)}k</span></h3>
           <div className="cols">
@@ -144,9 +160,9 @@ export function Game() {
         </div>
       )}
 
-      {!governor && p.office && city && <Council />}
-      {!governor && p.office && city && <Projects />}
-      {!governor && p.office && city && <Laws />}
+      {!governor && !lawmaker && p.office && city && <Council />}
+      {!governor && !lawmaker && p.office && city && <Projects />}
+      {!governor && !lawmaker && p.office && city && <Laws />}
       {p.office && <HigherOffice />}
 
       <div className="panel">
@@ -180,12 +196,20 @@ export function Game() {
           <div className="panel">
             <h3>{p.pendingEvent.title}</h3>
             <p>{p.pendingEvent.text}</p>
+            {p.pendingEvent.choices.some((ch) => ch.effects.treasury || ch.effects.funds) && (
+              <p className="money-line">
+                {[treasuryOf(p) && `${treasuryOf(p)!.label}: ${k(treasuryOf(p)!.value)}`, `Campaign funds: ${k(p.funds)}`].filter(Boolean).join(' · ')}
+              </p>
+            )}
             <div className="actions">
-              {p.pendingEvent.choices.map((ch, i) => <button key={i} onClick={() => resolveEvent(i)}>{ch.label}</button>)}
+              {p.pendingEvent.choices.map((ch, i) => {
+                const m = moneyChange(p, ch.effects);
+                return <button key={i} className="action" onClick={() => resolveEvent(i)}>{ch.label}{m.map((t) => <small key={t} className="money">{t}</small>)}</button>;
+              })}
             </div>
           </div>
         </div>
-      ) : governor && bill ? <BillModal /> : null}
+      ) : governor && bill ? <BillModal /> : lawmaker && voting ? <VoteModal /> : null}
     </div>
   );
 }

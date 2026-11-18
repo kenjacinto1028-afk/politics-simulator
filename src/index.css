@@ -62,3 +62,13 @@ ul.plain { margin: 0; padding-left: 18px; }
   .card-grid { grid-template-columns: 1fr; }
   .panel { overflow-wrap: anywhere; }
 }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.step { background: #2c303b; color: #9aa0ad; padding: 4px 10px; border-radius: 12px; font-size: 13px; }
+.step.now { background: #3b6cff; color: white; }
+.step.done { background: #24402f; color: #8fd9a8; }
+.party-line { font-size: 18px; font-weight: 700; margin: 10px 0; }
+.kpis { flex-wrap: wrap; justify-content: flex-end; }
+.kpis div { text-align: center; }
+.money-line { background: #262a35; border-radius: 6px; padding: 6px 10px; font-size: 13px; margin: 8px 0; }
+button.action small.money { opacity: 0.9; }
+@media (max-width: 700px) { .kpis { justify-content: flex-start; } .modal .panel { max-height: 90vh; overflow-y: auto; box-sizing: border-box; } }
