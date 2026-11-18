@@ -174,6 +174,7 @@ export function tickAI(g: GameState, rng: Rng): GameState {
         if (o !== id && oc && (oc.society?.press ?? 50) > 60) countries[o] = { ...oc, relations: { ...oc.relations, [id]: clamp((oc.relations[id] ?? 0) - 15, -100, 100) } };
       }
     }
+    if (c.leader.name !== countries[id].leader.name) c = { ...c, leaderSince: g.turn };
     countries[id] = c;
   }
 

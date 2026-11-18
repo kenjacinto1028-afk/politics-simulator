@@ -67,6 +67,8 @@ export interface Country {
   nextVote?: number;
   pacts?: string[];
   junta?: boolean;
+  /** Turn the current leader took power (unset: since the game began). */
+  leaderSince?: number;
 }
 
 /** A war between two AI countries. score > 0: a is winning. */
@@ -165,6 +167,10 @@ export interface Player {
   highestRung: number;
   /** The story of this career, for the score and the history screen. */
   history?: CareerHistory;
+  /** Sister cities and the last trade trip (mayors and governors). */
+  abroad?: { sisters: string[]; lastTrip: number };
+  /** Things this career has done, for achievements. */
+  feats?: string[];
 }
 
 export interface Moment { turn: number; date: string; kind: 'office' | 'election' | 'war' | 'policy' | 'scandal' | 'end'; text: string }
@@ -293,6 +299,8 @@ export interface Nation {
   asked?: Record<string, number>;
   /** An ally asking you for help right now. */
   allyCall?: AllyCall | null;
+  /** Counter-intelligence sweep runs until this turn. */
+  counterIntelUntil?: number;
   /** An AI country's offer or demand waiting for your answer. */
   offer?: Offer | null;
   /** Your policy in each area: 0, 1 (default) or 2. */

@@ -162,3 +162,16 @@ button.action small.money { opacity: 0.9; }
 .fx-confetti i { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; animation: fx-fall linear forwards; }
 @keyframes fx-fall { to { top: 105%; transform: rotate(720deg) translateX(40px); } }
 @media (prefers-reduced-motion: reduce) { .fx-flash, .fx-confetti { display: none; } }
+
+/* Leader cards, tutorial, achievements */
+.leader-link { background: none; border: 0; padding: 0; margin: 0; color: inherit; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; text-align: left; font: inherit; min-height: 0; }
+.leader-link span { text-decoration: underline dotted; text-underline-offset: 3px; }
+.leader-card { max-width: 480px; }
+.coach { position: fixed; z-index: 160; top: 10px; left: 50%; transform: translateX(-50%); width: min(460px, calc(100% - 24px)); box-sizing: border-box; background: #1f2a44; border: 1px solid #4f8cff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+.coach p { margin: 6px 0; font-size: 14px; }
+.badge-toast { position: fixed; z-index: 170; bottom: calc(130px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: #24523a; border-radius: 10px; padding: 10px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.5); width: max-content; max-width: calc(100% - 24px); }
+.badge-icon { font-size: 22px; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.ach { display: flex; gap: 8px; align-items: center; background: #262a35; border-radius: 6px; padding: 6px 8px; opacity: .55; }
+.ach.got { opacity: 1; background: #24402f; }
+@media (min-width: 761px) { .badge-toast { bottom: 24px; } }

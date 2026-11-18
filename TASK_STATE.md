@@ -115,3 +115,12 @@
 - [x] Leader faces — src/ui/Portrait.tsx
 - [x] Event pictures, confetti, red flash, count-up numbers — src/ui/Juice.tsx
 - [x] Images, music and sound picked by Kenneth (no real music tracks)
+
+## Six features (branch feat/six-features)
+- [x] Balance pass — src/sim/robot.ts, career.ts, history.ts, balance.test.ts
+- [x] World contact for mayors/governors — src/sim/abroad.ts, src/ui/Abroad.tsx
+- [x] AI spies, meddling, coups, counter-intel — src/sim/abroad.ts
+- [x] Leader profile cards — src/ui/LeaderCard.tsx
+- [x] Tutorial — src/ui/Extras.tsx
+- [x] Achievements — src/sim/achievements.ts, src/ui/Extras.tsx
+- [x] Tests (128), 43-save click-through, phone + computer check

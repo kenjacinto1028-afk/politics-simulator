@@ -3,7 +3,7 @@ import { BLOCS, REGIONS, RESOURCES, type BlocId } from '../data/geo';
 import { aidAmount, alliesOf, askBlocker, blocLeader, blocMembers, helpChance, influence, joinBlocBlocker, TIERS, tierOf } from '../sim/geo';
 import { kindOf } from '../sim/offices';
 import { Flag } from './Flag';
-import { Portrait } from './Portrait';
+import { LeaderLink } from './LeaderCard';
 
 const tierClass = (t: string) => (t === 'super' || t === 'great' ? 'badge good' : t === 'regional' ? 'badge' : 'badge muted');
 
@@ -132,7 +132,7 @@ export function OfferCard() {
   return (
     <div className="panel">
       <h3><Flag id={c.id} /> {threat ? `Demand from ${c.name}` : `Offer from ${c.name}`}</h3>
-      <p className="with-face"><Portrait name={c.leader.name} traits={c.leader.traits} junta={!!c.junta} size={44} /><span>{o.text}</span></p>
+      <p className="with-face"><LeaderLink id={c.id} size={44} name={false} /><span>{o.text}</span></p>
       <p className="muted small-text">{hint} {o.monthsLeft} month{o.monthsLeft === 1 ? '' : 's'} to answer; no answer counts as a no.</p>
       <div className="row">
         <button className="small" disabled={!!p.pendingEvent} onClick={() => answerOffer(true)}>{threat ? 'Give in' : 'Accept'}</button>
@@ -152,7 +152,7 @@ export function AllyCallCard() {
   return (
     <div className="panel">
       <h3><Flag id={a.id} /> {a.name} asks for help</h3>
-      <p className="with-face"><Portrait name={a.leader.name} traits={a.leader.traits} size={44} /><span>{call.reason} {a.leader.name} asks you to send {call.kind === 'aid' ? 'money' : 'troops'}.</span></p>
+      <p className="with-face"><LeaderLink id={a.id} size={44} name={false} /><span>{call.reason} {a.leader.name} asks you to send {call.kind === 'aid' ? 'money' : 'troops'}.</span></p>
       <p className="muted small-text">
         {call.kind === 'aid' ? 'Helping costs a few billion but wins trust and a favor you can call in later.' : 'Sending troops weakens your army a little and worries voters, but earns two favors.'}
         {' '}Saying no hurts relations and may end the alliance. {call.monthsLeft} month{call.monthsLeft === 1 ? '' : 's'} to answer.

@@ -14,6 +14,7 @@ import { answerAlly, armsDeal, askAlly, backSide, inviteToBloc, joinBloc, leaveB
 import type { BlocId } from './data/geo';
 import { setPolicy, spyOp } from './sim/society';
 import { answerOffer, backWar } from './sim/ai';
+import { counterIntelSweep, sisterCity, tradeTrip } from './sim/abroad';
 import { addRun, loadRuns, retireNow, summarize } from './sim/history';
 import type { RunSummary } from './sim/types';
 import type { PolicyId } from './data/society';
@@ -65,6 +66,9 @@ interface Store {
   retireNow: () => void;
   answerOffer: (accept: boolean) => void;
   backWar: (index: number, side: string) => void;
+  sisterCity: (id: string) => void;
+  tradeTrip: (id: string) => void;
+  counterIntelSweep: () => void;
   runs: RunSummary[];
   act: (a: CampaignAction) => void;
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
@@ -166,6 +170,9 @@ export const useGame = create<Store>((set, get) => ({
   runs: loadRuns(kv),
   answerOffer: (accept) => set((s) => ({ game: answerOffer(s.game, accept) })),
   backWar: (i, side) => set((s) => ({ game: backWar(s.game, i, side) })),
+  sisterCity: (id) => set((s) => ({ game: sisterCity(s.game, id) })),
+  tradeTrip: (id) => set((s) => ({ game: tradeTrip(s.game, id, actionRng(s.game)) })),
+  counterIntelSweep: () => set((s) => ({ game: counterIntelSweep(s.game) })),
   act: (a) => set((s) => ({ game: doAction(s.game, a, actionRng(s.game)) })),
   setBudget: (t, sp) => set((s) => ({ game: setBudget(s.game, t, sp) })),
   resolveEvent: (i) => set((s) => ({ game: resolveEvent(s.game, i) })),

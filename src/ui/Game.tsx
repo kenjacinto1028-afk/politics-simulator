@@ -28,6 +28,9 @@ import { Retired } from './Retired';
 import { CountUp, EventArt, MuteButton, SoundSettings } from './Juice';
 import { Flag } from './Flag';
 import { Portrait } from './Portrait';
+import { WorldContact } from './Abroad';
+import { LeaderCardModal, LeaderLink } from './LeaderCard';
+import { AchievementsPanel, Coach } from './Extras';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 import { countryLabel } from '../data/local-names';
 import { SYSTEM_RULES } from '../data/people';
@@ -219,6 +222,7 @@ export function Game() {
       {on('job') && kind === 'local' && city && <Council />}
       {on('job') && kind === 'local' && city && <Projects />}
       {on('job') && kind === 'local' && city && <Laws />}
+      {on('job') && p.office && (kind === 'local' || kind === 'regional') && <WorldContact />}
       {on('job') && p.office && <HigherOffice />}
 
       {on('world') && <div className="panel">
@@ -239,7 +243,7 @@ export function Game() {
               <tbody>
                 {Object.values(game.countries).map((x) => (
                   <tr key={x.id} className={x.id === p.countryId ? 'home' : ''}>
-                    <td><Flag id={x.id} size={12} /> {countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td>{x.leader.name}{x.junta ? ' (junta)' : ''}</td><td>{fmt(x.leader.approval, 0)}%</td>
+                    <td><Flag id={x.id} size={12} /> {countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td><LeaderLink id={x.id} size={22} />{x.junta ? ' (junta)' : ''}</td><td>{fmt(x.leader.approval, 0)}%</td>
                     <td>{fmt(x.economy.gdpBn, 0)}</td><td>{fmt(x.economy.growth)}%</td><td>{fmt(x.economy.unemployment)}%</td>
                   </tr>
                 ))}
@@ -251,6 +255,7 @@ export function Game() {
 
       {on('more') && <CareerSoFar />}
       {on('more') && <SaveMenu canSave />}
+      {on('more') && <AchievementsPanel />}
       {on('more') && <SoundSettings />}
       {phone && tab === 'more' && <button className="secondary" onClick={quitToMenu}>Main menu</button>}
 
@@ -286,7 +291,10 @@ export function Game() {
             </div>
           </div>
         </div>
-      ) : governor && bill ? <BillModal /> : lawmaker && voting ? <VoteModal /> : minister && asking ? <AskModal /> : null}
+      ) : null}
+      <LeaderCardModal />
+      <Coach />
+      {p.pendingEvent ? null : governor && bill ? <BillModal /> : lawmaker && voting ? <VoteModal /> : minister && asking ? <AskModal /> : null}
     </div>
   );
 }
