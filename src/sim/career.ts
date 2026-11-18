@@ -1,12 +1,20 @@
+import { CAMPAIGN_MONTHS_CONST } from './constants';
 import { CITY_EVENTS, CITY_NAMES, RIVAL_FIRST, RIVAL_LAST, RIVAL_PARTIES } from '../data/events';
 import { SYSTEMS, OFFICE_NAMES } from '../data/systems';
 import { clamp, newCity, normalizeSpending, tickCity } from './city';
 import { GROUP_IDS, groupApproval, startingGroups, tickBuilds, tickCouncil, tickGroups } from './mayor';
+import { newRegion, regionGroupTargets, tickRegion } from './governor';
+import { kindOf } from './offices';
+import { STATE_EVENTS } from '../data/state-content';
 import type { Rng } from './rng';
 import type { AdvancementMode, Campaign, City, Effects, GameState, OfficeId, Player, Rival, SpendKey } from './types';
 
 export const ACTIONS_PER_MONTH = 3;
-export const CAMPAIGN_MONTHS = 6;
+export const CAMPAIGN_MONTHS = CAMPAIGN_MONTHS_CONST;
+/** Events: at most one every EVENT_GAP months, and an event can't recur until EVENT_MEMORY others have happened. */
+export const EVENT_CHANCE = 0.35;
+export const EVENT_GAP = 2;
+export const EVENT_MEMORY = 8;
 const pick = <T,>(arr: readonly T[], rng: Rng) => arr[Math.floor(rng() * arr.length)];
 
 export type CampaignAction = 'rally' | 'fundraise' | 'ads' | 'door-knock' | 'debate' | 'party-work' | 'buy-shares' | 'town-hall';
@@ -23,7 +31,7 @@ export const ACTION_INFO: Record<CampaignAction, { label: string; hint: string; 
 };
 
 /** Actions offered depend on how the system advances you and whether you are campaigning. */
-export function availableActions(mode: AdvancementMode, campaigning: boolean, inOffice: boolean): CampaignAction[] {
+export function availableActions(mode: AdvancementMode, campaigning: boolean, inOffice: boolean, localOffice = true): CampaignAction[] {
   const base: CampaignAction[] = ['fundraise'];
   // Out of office you are always building toward the next run; in office, campaign tools wait for campaign season.
   const stumping = campaigning || !inOffice;
@@ -33,7 +41,7 @@ export function availableActions(mode: AdvancementMode, campaigning: boolean, in
   if (mode === 'shares') base.push('buy-shares');
   else base.push('party-work');
   if (campaigning && mode === 'election') base.push('debate');
-  if (inOffice) base.push('town-hall');
+  if (inOffice && localOffice) base.push('town-hall');
   return [...new Set(base)];
 }
 
@@ -55,7 +63,7 @@ const modeOf = (g: GameState) => SYSTEMS[g.countries[g.player!.countryId].system
 function scores(g: GameState, p: Player, c: Campaign) {
   const sys = SYSTEMS[g.countries[p.countryId].systemId];
   const r = c.rival;
-  const incumbency = c.incumbent && p.city ? (p.city.happiness - 50) * 0.4 + 3 : 0;
+  const incumbency = c.incumbent ? (officeHappiness(p) - 50) * 0.4 + 3 : 0;
   const groupsEdge = clamp((groupApproval(p) - 50) * 0.8, -12, 12);
   let you: number, them: number;
   if (sys.advancement === 'appointment') {
@@ -81,8 +89,22 @@ function log(g: GameState, line: string): GameState {
   return { ...g, log: [`${g.year}-${String(g.month).padStart(2, '0')}: ${line}`, ...g.log].slice(0, 200) };
 }
 
+/** How happy the people you govern are: your state if Governor, otherwise your city. */
+export function officeHappiness(p: Player): number {
+  if (kindOf(p.office) === 'regional' && p.region) return p.region.happiness;
+  return p.city?.happiness ?? 50;
+}
+
+/** Rival strength. Re-elections scale with how you're doing; races above the first rung draw a stronger field. */
+function rivalStrength(g: GameState, p: Player, office: OfficeId, incumbent: boolean): number {
+  if (incumbent) return 15 + p.popularity * 0.58 + (60 - officeHappiness(p)) * 0.3;
+  const ladder = SYSTEMS[g.countries[p.countryId].systemId].ladder;
+  if (ladder.indexOf(office) <= 0) return 16;
+  return SYSTEMS[g.countries[p.countryId].systemId].advancement === 'election' ? 27 + p.popularity * 0.55 : 68;
+}
+
 function makeCampaign(g: GameState, p: Player, office: OfficeId, incumbent: boolean, rng: Rng): Campaign {
-  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, incumbent ? 15 + p.popularity * 0.65 + (100 - p.city!.happiness) * 0.3 : 16), poll: 50, incumbent };
+  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, incumbent)), poll: 50, incumbent };
   return { ...c, poll: pollShare(g, p, c, rng) };
 }
 
@@ -92,26 +114,38 @@ export function startCareer(g: GameState, name: string, countryId: string, rng: 
   const player: Player = {
     name, countryId, office: null, popularity: 12, funds: 50, age: 30, loyalty: 20, actionsLeft: ACTIONS_PER_MONTH,
     campaign: null, city, termMonthsLeft: 0, pendingEvent: null, record: { won: 0, lost: 0 },
-    groups: startingGroups(rng), monthsInOffice: 0,
+    groups: startingGroups(rng), monthsInOffice: 0, recentEvents: [], lastEventTurn: -99,
+    region: null, termsInOffice: 0, highestRung: -1,
   };
   player.campaign = makeCampaign(g, player, sys.ladder[0], false, rng);
   const verb = sys.advancement === 'election' ? 'announces a run' : sys.advancement === 'shares' ? 'seeks a board seat' : 'seeks party nomination';
   return log({ ...g, player }, `${name} ${verb} for ${OFFICE_NAMES[sys.ladder[0]]} of ${city.name}, ${g.countries[countryId].name}. Opponent: ${player.campaign.rival.name} (${player.campaign.rival.party}).`);
 }
 
-/** Start a fresh campaign after a loss. */
-export function runAgain(g: GameState, rng: Rng): GameState {
+/** Offices you can run for while out of office: anything up to one rung above the highest you've held. */
+export function comebackOptions(g: GameState): OfficeId[] {
+  const p = g.player!;
+  const ladder = SYSTEMS[g.countries[p.countryId].systemId].ladder;
+  return ladder.slice(0, Math.min(ladder.length, p.highestRung + 2));
+}
+
+/** Start a fresh campaign while out of office. */
+export function runAgain(g: GameState, rng: Rng, office?: OfficeId): GameState {
   const p = g.player!;
   if (p.campaign || p.office) return g;
-  const office = SYSTEMS[g.countries[p.countryId].systemId].ladder[0];
-  const player = { ...p, campaign: makeCampaign(g, p, office, false, rng) };
-  return log({ ...g, player }, `${p.name} launches a comeback bid against ${player.campaign.rival.name}.`);
+  const options = comebackOptions(g);
+  const target = office && options.includes(office) ? office : options[0];
+  const player = { ...p, campaign: makeCampaign(g, p, target, false, rng) };
+  return log({ ...g, player }, `${p.name} launches a bid for ${OFFICE_NAMES[target]} against ${player.campaign.rival.name}.`);
 }
 
 export function applyEffects(p: Player, e: Effects): Player {
+  // Money from events comes out of whichever budget you run.
+  const stateMoney = kindOf(p.office) === 'regional' && !!p.region;
+  const region = stateMoney ? { ...p.region!, treasury: p.region!.treasury + (e.treasury ?? 0) } : p.region;
   const city: City | null = p.city ? {
     ...p.city,
-    treasury: p.city.treasury + (e.treasury ?? 0),
+    treasury: p.city.treasury + (stateMoney ? 0 : e.treasury ?? 0),
     crime: clamp(p.city.crime + (e.crime ?? 0), 0, 100),
     services: clamp(p.city.services + (e.services ?? 0), 0, 100),
     jobs: clamp(p.city.jobs + (e.jobs ?? 0), 0, 100),
@@ -121,7 +155,7 @@ export function applyEffects(p: Player, e: Effects): Player {
   const groups = { ...p.groups };
   for (const g of GROUP_IDS) groups[g] = clamp(groups[g] + (e.groups?.[g] ?? 0), 0, 100);
   return {
-    ...p, city, groups,
+    ...p, city, region, groups,
     popularity: clamp(p.popularity + (e.popularity ?? 0), 0, 100),
     funds: Math.max(0, p.funds + (e.funds ?? 0)),
     loyalty: clamp(p.loyalty + (e.loyalty ?? 0), 0, 100),
@@ -184,36 +218,40 @@ function resolveElection(g: GameState, rng: Rng): GameState {
   const share = pollShare(g, p, c, rng, 3);
   const won = share >= 50;
   const office = OFFICE_NAMES[c.office];
-  const movingUp = !!p.office && p.office !== c.office;
   const how = sys.advancement === 'election' ? `${share.toFixed(1)}% of the vote` : sys.advancement === 'shares' ? `${share.toFixed(1)}% of shareholder votes` : 'the party committee\'s decision';
   const record = won ? { ...p.record, won: p.record.won + 1 } : { ...p.record, lost: p.record.lost + 1 };
   if (won) {
-    const player: Player = {
+    const rung = sys.ladder.indexOf(c.office);
+    const newJob = c.office !== p.office;
+    let player: Player = {
       ...p, office: c.office, campaign: null, termMonthsLeft: sys.termYears * 12, record,
-      monthsInOffice: c.incumbent ? p.monthsInOffice : 0, popularity: clamp(p.popularity + 5, 0, 100),
+      monthsInOffice: newJob ? 0 : p.monthsInOffice, termsInOffice: newJob ? 1 : p.termsInOffice + 1,
+      highestRung: Math.max(p.highestRung, rung), popularity: clamp(p.popularity + 5, 0, 100),
     };
-    const where = c.office === sys.ladder[0] ? ` of ${p.city!.name}` : '';
+    if (newJob && kindOf(c.office) === 'regional') player = { ...player, region: newRegion(p.city!.name, rng) };
+    const where = kindOf(c.office) === 'local' ? ` of ${p.city!.name}` : kindOf(c.office) === 'regional' ? ` of ${player.region!.name}` : '';
     return log({ ...g, player }, `${p.name} ${c.incumbent ? 'is re-elected' : 'becomes'} ${office}${where} with ${how}.`);
   }
-  if (movingUp) {
-    // Losing a bid for higher office costs face but not your current job.
-    const player: Player = { ...p, campaign: null, record, popularity: clamp(p.popularity - 5, 0, 100) };
-    return log({ ...g, player }, `${p.name} loses the race for ${office} to ${c.rival.name} (${how}) and stays on as ${OFFICE_NAMES[p.office!]}.`);
-  }
-  const player: Player = { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, record };
-  return log({ ...g, player }, `${p.name} loses to ${c.rival.name} (${how}).`);
+  // Any loss leaves you out of office: you gave up your old seat to run.
+  const player: Player = { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, termsInOffice: 0, record };
+  return log({ ...g, player }, `${p.name} loses the race for ${office} to ${c.rival.name} (${how}) and is out of office.`);
 }
 
-/** Start a campaign for the next rung while keeping your current office. */
+/**
+ * Run for the next rung instead of seeking re-election. Only possible in your final months,
+ * and it replaces the re-election campaign: lose and you are out of office.
+ */
 export function runForHigher(g: GameState, office: OfficeId, rng: Rng): GameState {
   const p = g.player;
-  if (!p?.office || p.campaign || p.actionsLeft <= 0) return g;
-    // Higher office means a stronger field. In elections the rival scales with your fame; elsewhere with the post.
-  const mode = SYSTEMS[g.countries[p.countryId].systemId].advancement;
-  const strength = mode === 'election' ? 27 + p.popularity * 0.55 : 68;
-  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, strength), poll: 50, incumbent: false };
+  if (!p?.office || p.actionsLeft <= 0 || p.termMonthsLeft > CAMPAIGN_MONTHS) return g;
+  if (p.campaign && !(p.campaign.incumbent && p.campaign.office === p.office)) return g;
+  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, false)), poll: 50, incumbent: false };
   const player = { ...p, actionsLeft: p.actionsLeft - 1, campaign: { ...c, poll: pollShare(g, p, c, rng) } };
-  return log({ ...g, player }, `${p.name} announces a run for ${OFFICE_NAMES[office]}. Opponent: ${c.rival.name} (${c.rival.party}).`);
+  return log({ ...g, player }, `${p.name} skips re-election and runs for ${OFFICE_NAMES[office]}. Opponent: ${c.rival.name} (${c.rival.party}).`);
+}
+
+function eventPool(p: Player) {
+  return kindOf(p.office) === 'regional' ? STATE_EVENTS : CITY_EVENTS;
 }
 
 /** Player-side monthly update; runs after the world tick. */
@@ -221,40 +259,55 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
   let p = g.player;
   if (!p) return g;
   const country = g.countries[p.countryId];
+  const sys = SYSTEMS[country.systemId];
   p = { ...p, actionsLeft: ACTIONS_PER_MONTH, age: g.month === 1 ? p.age + 1 : p.age };
   const done: string[] = [];
+  const kind = kindOf(p.office);
 
-  if (p.office && p.city) {
+  if (kind === 'regional' && p.region) {
+    const region = tickRegion(p.region, country, p.popularity, rng);
+    p = { ...p, region, popularity: clamp(p.popularity + (region.happiness - p.popularity) * 0.15, 0, 100) };
+  } else if (p.office && p.city) {
     const built = tickBuilds(tickCity(p.city, country, rng));
-    let city = tickCouncil(built.city, p.popularity);
-    p = { ...p, city, popularity: clamp(p.popularity + (city.happiness - p.popularity) * 0.15, 0, 100), termMonthsLeft: p.termMonthsLeft - 1, monthsInOffice: p.monthsInOffice + 1 };
+    const city = tickCouncil(built.city, p.popularity);
+    p = { ...p, city, popularity: clamp(p.popularity + (city.happiness - p.popularity) * 0.15, 0, 100) };
     for (const proj of built.finished) {
       p = applyEffects(p, { groups: proj.groups, popularity: 4 });
       done.push(`${p.name} cuts the ribbon on the ${proj.name}.`);
     }
-    city = p.city!;
   } else {
     p = { ...p, popularity: clamp(p.popularity - 0.3, 0, 100) };
   }
-  p = tickGroups(p);
+  if (p.office) p = { ...p, termMonthsLeft: p.termMonthsLeft - 1, monthsInOffice: p.monthsInOffice + 1 };
+  p = tickGroups(p, kind === 'regional' && p.region ? regionGroupTargets(p) : undefined);
   let next: GameState = { ...g, player: p };
   for (const line of done) next = log(next, line);
 
+  const termLimited = sys.termLimit !== null && p.termsInOffice >= sys.termLimit;
   if (p.campaign) {
     const rival = { ...p.campaign.rival, popularity: clamp(p.campaign.rival.popularity + rng() * 2.5, 0, 95), funds: p.campaign.rival.funds + Math.round(rng() * 15) };
     const campaign = { ...p.campaign, rival, monthsLeft: p.campaign.monthsLeft - 1 };
     p = { ...p, campaign: { ...campaign, poll: pollShare(next, p, campaign, rng) } };
     next = { ...next, player: p };
     if (campaign.monthsLeft <= 0) next = resolveElection(next, rng);
-  } else if (p.office && p.termMonthsLeft <= CAMPAIGN_MONTHS) {
+  } else if (p.office && p.termMonthsLeft <= 0) {
+    // Term over with no campaign (term-limited and didn't run higher): retire from this office.
+    next = log({ ...next, player: { ...p, office: null, termsInOffice: 0, monthsInOffice: 0 } }, `${p.name} leaves office as ${OFFICE_NAMES[p.office]} at the end of the term.`);
+  } else if (p.office && p.termMonthsLeft === CAMPAIGN_MONTHS && termLimited) {
+    next = log(next, `${p.name} is term-limited as ${OFFICE_NAMES[p.office]}. Run for higher office now, or leave when the term ends.`);
+  } else if (p.office && p.termMonthsLeft <= CAMPAIGN_MONTHS && !termLimited) {
     p = { ...p, campaign: makeCampaign(next, p, p.office, true, rng) };
-    next = log({ ...next, player: p }, `Re-election season: ${p.campaign!.rival.name} (${p.campaign!.rival.party}) challenges ${p.name}.`);
+    next = log({ ...next, player: p }, `Re-election season: ${p.campaign!.rival.name} (${p.campaign!.rival.party}) challenges ${p.name}. You can also run for higher office instead.`);
   }
 
   p = next.player!;
-  if (p.office && !p.pendingEvent && rng() < 0.3) {
-    next = { ...next, player: { ...p, pendingEvent: pick(CITY_EVENTS, rng) } };
+  const roll = rng();
+  if (p.office && !p.pendingEvent && next.turn - p.lastEventTurn >= EVENT_GAP && roll < EVENT_CHANCE) {
+    const pool = eventPool(p).filter((e) => !p.recentEvents.includes(e.id));
+    if (pool.length) {
+      const ev = pick(pool, rng);
+      next = { ...next, player: { ...p, pendingEvent: ev, recentEvents: [ev.id, ...p.recentEvents].slice(0, EVENT_MEMORY), lastEventTurn: next.turn } };
+    }
   }
   return next;
 }
-

@@ -30,5 +30,12 @@ export function advanceMonth(state: GameState, rng: Rng): GameState {
 
 /** Deterministic RNG for a given game moment; `salt` separates independent rolls within a turn. */
 export function rngFor(state: GameState, salt = 0): Rng {
-  return makeRng((state.seed * 2654435761 + state.turn * 97 + salt * 7919) >>> 0);
+  return makeRng(mix(mix(state.seed) ^ mix(state.turn + 1) ^ mix(salt * 7919 + 13)));
+}
+
+/** murmur3 finalizer: spreads nearby inputs (turn 5 vs 6) into unrelated seeds. */
+function mix(h: number): number {
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
 }

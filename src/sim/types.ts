@@ -63,14 +63,24 @@ export interface Player {
   actionsLeft: number;
   campaign: Campaign | null;
   city: City | null;
+  /** Your state/province once you are Governor. */
+  region: Region | null;
   /** Months until the current term ends. */
   termMonthsLeft: number;
   pendingEvent: PendingEvent | null;
+  /** Recently seen event ids (newest first), so events don't repeat back to back. */
+  recentEvents: string[];
+  /** Turn of the last event, to space them out. */
+  lastEventTurn: number;
   /** Elections won/lost, for the career summary. */
   record: { won: number; lost: number };
   /** Approval of you per voter group, 0..100. */
   groups: Record<GroupId, number>;
   monthsInOffice: number;
+  /** Terms served in the current office (for term limits). */
+  termsInOffice: number;
+  /** Highest ladder index ever held, -1 if none. Sets which offices a comeback can target. */
+  highestRung: number;
 }
 
 export interface Rival { name: string; party: string; popularity: number; funds: number }
@@ -97,6 +107,32 @@ export interface CouncilMember {
 }
 
 export interface ProjectBuild { id: string; monthsLeft: number }
+
+export interface StateCity {
+  name: string;
+  population: number;      // thousands
+  happiness: number;       // 0..100
+  mayor: string;
+  /** 0..100 — how well this city's mayor works with you. */
+  mayorRelationship: number;
+  home: boolean;
+}
+
+export interface Region {
+  name: string;
+  taxRate: number;                                   // % state tax, 0..10
+  budget: Record<'schools' | 'hospitals' | 'roads' | 'police' | 'development', number>; // sums to 100
+  treasury: number;                                  // thousands
+  stats: Record<'education' | 'health' | 'infrastructure' | 'safety' | 'economy', number>;
+  happiness: number;
+  cities: StateCity[];
+  legislature: { seats: number; yourParty: number; goodwill: number };
+  laws: string[];
+  /** Bill waiting for your signature or veto. */
+  pendingBill: string | null;
+  recentBills: string[];
+  lastAddressTurn: number;
+}
 
 export interface City {
   name: string;

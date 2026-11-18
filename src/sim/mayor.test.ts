@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { advanceMonth, newGame, rngFor } from './engine';
-import { runForHigher, startCareer } from './career';
+import { comebackOptions, resolveEvent, runForHigher, startCareer } from './career';
 import { campaignTip, cutDeal, forecast, higherOfficeBlocker, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './mayor';
 import { statBonuses } from './city';
 import { deserialize } from './save';
@@ -10,10 +10,10 @@ import type { GameState } from './types';
 /** A fresh Mayor with a friendly council and a full treasury. */
 function mayor(seed = 1): GameState {
   const g0 = newGame(10, seed);
-  const g = startCareer(g0, 'M', 'usa', rngFor(g0, 99));
+  const g = startCareer(g0, 'M', 'phl', rngFor(g0, 99));
   const p = g.player!;
   const city = { ...p.city!, treasury: 1000, council: p.city!.council.map((m) => ({ ...m, relationship: 80 })) };
-  return { ...g, player: { ...p, office: 'mayor', campaign: null, termMonthsLeft: 48, city } };
+  return { ...g, player: { ...p, office: 'mayor', campaign: null, termMonthsLeft: 48, city, highestRung: 0, termsInOffice: 1 } };
 }
 
 describe('mayor', () => {
@@ -52,19 +52,36 @@ describe('mayor', () => {
     expect(meetGroup(g, 'students', rngFor(g, 4)).player!.groups.students).toBeGreaterThan(g.player!.groups.students);
   });
 
-  it('gates higher office, and losing that race keeps you Mayor', () => {
+  it('higher office opens only in the final months, replaces re-election, and losing leaves you jobless', () => {
     let g = mayor();
-    expect(higherOfficeBlocker(g)).toMatch(/Serve/);
-    g = { ...g, player: { ...g.player!, monthsInOffice: 20, popularity: 60, termMonthsLeft: 20 } };
+    expect(higherOfficeBlocker(g)).toMatch(/final 6 months/);
+    expect(runForHigher(g, 'governor', rngFor(g, 5))).toBe(g);
+    g = { ...g, player: { ...g.player!, monthsInOffice: 42, popularity: 60, termMonthsLeft: 7 } };
+    g = advanceMonth(g, rngFor(g)); // re-election season opens
+    g = { ...g, player: { ...g.player!, pendingEvent: null } };
+    expect(g.player!.campaign?.incumbent).toBe(true);
     expect(higherOfficeBlocker(g)).toBeNull();
-    expect(nextOffice(g)).toBe('state-legislator');
-    g = runForHigher(g, 'state-legislator', rngFor(g, 5));
-    // Force a loss: tank popularity and groups, then let the campaign run out.
+    expect(nextOffice(g)).toBe('governor');
+    g = runForHigher(g, 'governor', rngFor(g, 5));
+    expect(g.player!.campaign!.office).toBe('governor');
     g = { ...g, player: { ...g.player!, popularity: 0, loyalty: 0, groups: { workers: 0, business: 0, retirees: 0, students: 0 } } };
     for (let i = 0; i < 6; i++) { g = advanceMonth(g, rngFor(g)); g = { ...g, player: { ...g.player!, pendingEvent: null, popularity: 0 } }; }
     expect(g.player!.campaign).toBeNull();
-    expect(g.player!.office).toBe('mayor');
+    expect(g.player!.office).toBeNull();
     expect(g.player!.record.lost).toBe(1);
+    expect(comebackOptions(g)).toEqual(['mayor', 'governor']);
+  });
+
+  it('events do not repeat back to back', () => {
+    let g = mayor(77);
+    const seen: string[] = [];
+    for (let i = 0; i < 60; i++) {
+      g = { ...g, player: { ...g.player!, termMonthsLeft: 40, campaign: null } };
+      g = advanceMonth(g, rngFor(g));
+      if (g.player!.pendingEvent) { seen.push(g.player!.pendingEvent.id); g = resolveEvent(g, 1); }
+    }
+    expect(seen.length).toBeGreaterThan(5);
+    for (let i = 1; i < seen.length; i++) expect(seen.slice(Math.max(0, i - 8), i)).not.toContain(seen[i]);
   });
 
   it('gives a campaign tip', () => {

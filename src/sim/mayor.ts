@@ -1,13 +1,14 @@
 import { GROUPS, LAWS, PROJECTS, type LawDef, type ProjectDef } from '../data/city-content';
 import { SYSTEMS } from '../data/systems';
 import { clamp } from './city';
+import { kindOf } from './offices';
+import { CAMPAIGN_MONTHS_CONST } from './constants';
 import type { Rng } from './rng';
 import type { AdvancementMode, City, CouncilMember, GameState, GroupId, Player } from './types';
 
 export const GROUP_IDS = Object.keys(GROUPS) as GroupId[];
 export const MAX_BUILDS = 2;
-export const HIGHER_OFFICE_MIN_MONTHS = 18;
-export const HIGHER_OFFICE_MIN_POPULARITY = 55;
+export const HIGHER_OFFICE_MIN_POPULARITY = 50;
 export const DEAL_COST = 20;
 
 export const COUNCIL_LABEL: Record<AdvancementMode, string> = {
@@ -36,13 +37,13 @@ export function groupTargets(p: Player): Record<GroupId, number> {
   return raw;
 }
 
-export function tickGroups(p: Player): Player {
-  if (!p.office || !p.city) {
+export function tickGroups(p: Player, targets?: Record<GroupId, number>): Player {
+  if (!p.office || (!p.city && !targets)) {
     const groups = { ...p.groups };
     for (const g of GROUP_IDS) groups[g] = groups[g] + (45 - groups[g]) * 0.03;
     return { ...p, groups };
   }
-  const t = groupTargets(p);
+  const t = targets ?? groupTargets(p);
   const groups = { ...p.groups };
   for (const g of GROUP_IDS) groups[g] = clamp(groups[g] + (clamp(t[g], 0, 100) - groups[g]) * 0.06, 0, 100);
   return { ...p, groups };
@@ -88,7 +89,7 @@ function vote(c: City, prop: Proposal, rng: Rng) {
 // ---------- Player actions (each costs 1 action) ----------
 
 const canAct = (p: Player | null): p is Player => !!p && p.actionsLeft > 0 && !p.pendingEvent;
-const inCityOffice = (p: Player) => !!p.office && !!p.city;
+const inCityOffice = (p: Player) => kindOf(p.office) === 'local' && !!p.city;
 const spend = (p: Player): Player => ({ ...p, actionsLeft: p.actionsLeft - 1 });
 const stamp = (g: GameState) => `${g.year}-${String(g.month).padStart(2, '0')}`;
 const log = (g: GameState, line: string): GameState => ({ ...g, log: [`${stamp(g)}: ${line}`, ...g.log].slice(0, 200) });
@@ -171,10 +172,9 @@ export function higherOfficeBlocker(g: GameState): string | null {
   const p = g.player!;
   if (!p.office) return 'Hold office first';
   if (!nextOffice(g)) return 'You are at the top';
-  if (p.campaign) return 'Already campaigning';
-  if (p.monthsInOffice < HIGHER_OFFICE_MIN_MONTHS) return `Serve ${HIGHER_OFFICE_MIN_MONTHS - p.monthsInOffice} more months`;
+  if (p.campaign && !(p.campaign.incumbent && p.campaign.office === p.office)) return 'Already campaigning';
+  if (p.termMonthsLeft > CAMPAIGN_MONTHS_CONST) return `Opens in your final ${CAMPAIGN_MONTHS_CONST} months (${p.termMonthsLeft - CAMPAIGN_MONTHS_CONST} months from now)`;
   if (p.popularity < HIGHER_OFFICE_MIN_POPULARITY) return `Need ${HIGHER_OFFICE_MIN_POPULARITY} popularity`;
-  if (p.termMonthsLeft <= 7) return 'Too close to the end of your term';
   return null;
 }
 

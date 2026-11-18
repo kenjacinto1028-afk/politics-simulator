@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { advanceMonth, newGame, rngFor } from './sim/engine';
 import { doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
+import { courtLegislature, decideBill, grantCity, proposeStateLaw, repealStateLaw, setStateBudget, stateAddress, visitCity } from './sim/governor';
 import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
-import type { GameState, GroupId, SpendKey } from './sim/types';
+import type { GameState, GroupId, OfficeId, Region, SpendKey } from './sim/types';
 import type { WorldSize } from './data/countries';
 
 const kv = browserKV();
@@ -22,7 +23,15 @@ interface Store {
   act: (a: CampaignAction) => void;
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
   resolveEvent: (i: number) => void;
-  runAgain: () => void;
+  runAgain: (office?: OfficeId) => void;
+  visitCity: (i: number) => void;
+  grantCity: (i: number) => void;
+  courtLegislature: () => void;
+  stateAddress: () => void;
+  proposeStateLaw: (id: string) => void;
+  repealStateLaw: (id: string) => void;
+  decideBill: (sign: boolean) => void;
+  setStateBudget: (taxRate: number, budget: Region['budget']) => void;
   meetGroup: (g: GroupId) => void;
   lobby: (memberIndex: number) => void;
   cutDeal: (memberIndex: number) => void;
@@ -46,7 +55,7 @@ export const useGame = create<Store>((set, get) => ({
   startCareer: (name, countryId) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99)) })),
   nextTurn: () => {
     const g = get().game;
-    if (g.player?.pendingEvent) return;
+    if (g.player?.pendingEvent || g.player?.region?.pendingBill) return;
     const game = advanceMonth(g, rngFor(g));
     if (kv) saveTo(kv, 'autosave', game);
     set((s) => ({ game, saveRev: s.saveRev + 1 }));
@@ -54,7 +63,15 @@ export const useGame = create<Store>((set, get) => ({
   act: (a) => set((s) => ({ game: doAction(s.game, a, actionRng(s.game)) })),
   setBudget: (t, sp) => set((s) => ({ game: setBudget(s.game, t, sp) })),
   resolveEvent: (i) => set((s) => ({ game: resolveEvent(s.game, i) })),
-  runAgain: () => set((s) => ({ game: runAgain(s.game, rngFor(s.game, 50)) })),
+  runAgain: (office) => set((s) => ({ game: runAgain(s.game, rngFor(s.game, 50), office) })),
+  visitCity: (i) => set((s) => ({ game: visitCity(s.game, i, actionRng(s.game)) })),
+  grantCity: (i) => set((s) => ({ game: grantCity(s.game, i) })),
+  courtLegislature: () => set((s) => ({ game: courtLegislature(s.game, actionRng(s.game)) })),
+  stateAddress: () => set((s) => ({ game: stateAddress(s.game) })),
+  proposeStateLaw: (id) => set((s) => ({ game: proposeStateLaw(s.game, id, actionRng(s.game)) })),
+  repealStateLaw: (id) => set((s) => ({ game: repealStateLaw(s.game, id) })),
+  decideBill: (sign) => set((s) => ({ game: decideBill(s.game, sign) })),
+  setStateBudget: (t, b) => set((s) => ({ game: setStateBudget(s.game, t, b) })),
   meetGroup: (grp) => set((s) => ({ game: meetGroup(s.game, grp, actionRng(s.game)) })),
   lobby: (i) => set((s) => ({ game: lobbyMember(s.game, i, actionRng(s.game)) })),
   cutDeal: (i) => set((s) => ({ game: cutDeal(s.game, i) })),
