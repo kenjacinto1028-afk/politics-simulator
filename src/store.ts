@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 import { advanceMonth, newGame, rngFor } from './sim/engine';
-import { doAction, resolveEvent, runAgain, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
+import { doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
+import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
-import type { GameState, SpendKey } from './sim/types';
+import type { GameState, GroupId, SpendKey } from './sim/types';
 import type { WorldSize } from './data/countries';
 
 const kv = browserKV();
 const freshSeed = () => (Math.random() * 2 ** 31) >>> 0;
+/** Each action in a month gets its own deterministic roll. */
+const actionRng = (g: GameState) => rngFor(g, 10 + ACTIONS_PER_MONTH - (g.player?.actionsLeft ?? 0));
 
 interface Store {
   game: GameState;
@@ -20,6 +23,13 @@ interface Store {
   setBudget: (taxRate: number, spending: Record<SpendKey, number>) => void;
   resolveEvent: (i: number) => void;
   runAgain: () => void;
+  meetGroup: (g: GroupId) => void;
+  lobby: (memberIndex: number) => void;
+  cutDeal: (memberIndex: number) => void;
+  proposeProject: (id: string) => void;
+  proposeLaw: (id: string) => void;
+  repealLaw: (id: string) => void;
+  runForHigher: () => void;
   quitToMenu: () => void;
   save: (slot: SlotId) => void;
   load: (slot: SlotId) => void;
@@ -41,13 +51,20 @@ export const useGame = create<Store>((set, get) => ({
     if (kv) saveTo(kv, 'autosave', game);
     set((s) => ({ game, saveRev: s.saveRev + 1 }));
   },
-  act: (a) => set((s) => {
-    const used = ACTIONS_PER_MONTH - (s.game.player?.actionsLeft ?? 0);
-    return { game: doAction(s.game, a, rngFor(s.game, 10 + used)) };
-  }),
+  act: (a) => set((s) => ({ game: doAction(s.game, a, actionRng(s.game)) })),
   setBudget: (t, sp) => set((s) => ({ game: setBudget(s.game, t, sp) })),
   resolveEvent: (i) => set((s) => ({ game: resolveEvent(s.game, i) })),
   runAgain: () => set((s) => ({ game: runAgain(s.game, rngFor(s.game, 50)) })),
+  meetGroup: (grp) => set((s) => ({ game: meetGroup(s.game, grp, actionRng(s.game)) })),
+  lobby: (i) => set((s) => ({ game: lobbyMember(s.game, i, actionRng(s.game)) })),
+  cutDeal: (i) => set((s) => ({ game: cutDeal(s.game, i) })),
+  proposeProject: (id) => set((s) => ({ game: proposeProject(s.game, id, actionRng(s.game)) })),
+  proposeLaw: (id) => set((s) => ({ game: proposeLaw(s.game, id, actionRng(s.game)) })),
+  repealLaw: (id) => set((s) => ({ game: repealLaw(s.game, id) })),
+  runForHigher: () => set((s) => {
+    const next = s.game.player && nextOffice(s.game);
+    return next ? { game: runForHigher(s.game, next, actionRng(s.game)) } : {};
+  }),
   quitToMenu: () => set({ game: newGame(25, freshSeed()) }),
   save: (slot) => {
     if (!kv) return set({ message: 'Saving is unavailable in this browser.' });

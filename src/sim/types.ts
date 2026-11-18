@@ -68,6 +68,9 @@ export interface Player {
   pendingEvent: PendingEvent | null;
   /** Elections won/lost, for the career summary. */
   record: { won: number; lost: number };
+  /** Approval of you per voter group, 0..100. */
+  groups: Record<GroupId, number>;
+  monthsInOffice: number;
 }
 
 export interface Rival { name: string; party: string; popularity: number; funds: number }
@@ -83,6 +86,18 @@ export interface Campaign {
 
 export type SpendKey = 'police' | 'infrastructure' | 'welfare' | 'culture';
 
+export type GroupId = 'workers' | 'business' | 'retirees' | 'students';
+
+export interface CouncilMember {
+  name: string;
+  /** The voter group this member cares most about. */
+  leans: GroupId;
+  /** 0..100 — how much they like working with you. */
+  relationship: number;
+}
+
+export interface ProjectBuild { id: string; monthsLeft: number }
+
 export interface City {
   name: string;
   population: number;          // thousands
@@ -95,9 +110,14 @@ export interface City {
   jobs: number;                // 0..100 local economy
   happiness: number;           // 0..100
   culture: number;             // 0..100 events, tourism draw
+  council: CouncilMember[];
+  building: ProjectBuild[];
+  built: string[];
+  laws: string[];
 }
 
 export interface Effects {
+  groups?: Partial<Record<GroupId, number>>;
   popularity?: number; funds?: number; loyalty?: number;
   treasury?: number; crime?: number; services?: number; jobs?: number; happiness?: number; culture?: number;
 }

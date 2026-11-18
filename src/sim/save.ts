@@ -1,6 +1,8 @@
 import type { GameState } from './types';
+import { newCouncil } from './city';
+import { makeRng } from './rng';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const SLOTS = ['autosave', 'slot1', 'slot2', 'slot3'] as const;
 export type SlotId = (typeof SLOTS)[number];
 
@@ -21,10 +23,23 @@ export function serialize(game: GameState): string {
 export function deserialize(text: string): GameState {
   const file = JSON.parse(text) as Partial<SaveFile>;
   if (!file || typeof file !== 'object' || !file.game) throw new Error('Not a Politics Simulator save file.');
-  if (file.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${file.version}.`);
+  if (file.version !== 1 && file.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${file.version}.`);
   const g = file.game;
   if (typeof g.turn !== 'number' || !g.countries) throw new Error('Save file is corrupted.');
-  return g;
+  return file.version === 1 ? migrateV1(g) : g;
+}
+
+/** v1 saves predate voter groups, the council, projects and laws. */
+function migrateV1(g: GameState): GameState {
+  const p = g.player;
+  if (!p) return g;
+  const neutral = { workers: 45, business: 45, retirees: 45, students: 45 };
+  const city = p.city && {
+    ...p.city,
+    council: p.city.council ?? newCouncil(makeRng(g.seed)),
+    building: p.city.building ?? [], built: p.city.built ?? [], laws: p.city.laws ?? [],
+  };
+  return { ...g, player: { ...p, city, groups: p.groups ?? neutral, monthsInOffice: p.monthsInOffice ?? 0 } };
 }
 
 export function saveTo(kv: KV, slot: SlotId, game: GameState) {

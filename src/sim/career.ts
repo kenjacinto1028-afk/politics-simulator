@@ -1,6 +1,7 @@
 import { CITY_EVENTS, CITY_NAMES, RIVAL_FIRST, RIVAL_LAST, RIVAL_PARTIES } from '../data/events';
 import { SYSTEMS, OFFICE_NAMES } from '../data/systems';
 import { clamp, newCity, normalizeSpending, tickCity } from './city';
+import { GROUP_IDS, groupApproval, startingGroups, tickBuilds, tickCouncil, tickGroups } from './mayor';
 import type { Rng } from './rng';
 import type { AdvancementMode, Campaign, City, Effects, GameState, OfficeId, Player, Rival, SpendKey } from './types';
 
@@ -24,10 +25,13 @@ export const ACTION_INFO: Record<CampaignAction, { label: string; hint: string; 
 /** Actions offered depend on how the system advances you and whether you are campaigning. */
 export function availableActions(mode: AdvancementMode, campaigning: boolean, inOffice: boolean): CampaignAction[] {
   const base: CampaignAction[] = ['fundraise'];
-  if (mode === 'election') base.push('rally', 'ads', 'door-knock');
-  if (mode === 'appointment') base.push('party-work', 'rally');
-  if (mode === 'shares') base.push('buy-shares', 'ads');
-  if (mode !== 'shares') base.push('party-work');
+  // Out of office you are always building toward the next run; in office, campaign tools wait for campaign season.
+  const stumping = campaigning || !inOffice;
+  if (stumping && mode === 'election') base.push('rally', 'ads', 'door-knock');
+  if (stumping && mode === 'appointment') base.push('rally');
+  if (stumping && mode === 'shares') base.push('ads');
+  if (mode === 'shares') base.push('buy-shares');
+  else base.push('party-work');
   if (campaigning && mode === 'election') base.push('debate');
   if (inOffice) base.push('town-hall');
   return [...new Set(base)];
@@ -52,16 +56,17 @@ function scores(g: GameState, p: Player, c: Campaign) {
   const sys = SYSTEMS[g.countries[p.countryId].systemId];
   const r = c.rival;
   const incumbency = c.incumbent && p.city ? (p.city.happiness - 50) * 0.4 + 3 : 0;
+  const groupsEdge = clamp((groupApproval(p) - 50) * 0.8, -12, 12);
   let you: number, them: number;
   if (sys.advancement === 'appointment') {
-    you = p.loyalty * 1.2 + p.popularity * 0.3 + incumbency * 0.5;
+    you = p.loyalty * 1.2 + p.popularity * 0.3 + incumbency * 0.5 + groupsEdge * 0.3;
     them = r.popularity * 1.2 + (c.incumbent ? 30 : 44);
   } else if (sys.advancement === 'shares') {
-    you = p.loyalty * 1.2 + Math.sqrt(Math.max(0, p.funds)) * 1.5 + p.popularity * 0.3 + incumbency * 0.5;
-    them = r.popularity * 1.2 + Math.sqrt(r.funds) * 1.5 + 18;
+    you = p.loyalty * 1.2 + Math.sqrt(Math.max(0, p.funds)) * 1.5 + p.popularity * 0.3 + incumbency * 0.5 + groupsEdge * 0.3;
+    them = r.popularity * 1.2 + Math.sqrt(r.funds) * 1.5 + 20;
   } else {
     // Money matters through what it buys (ads, rallies); a small war-chest bonus remains.
-    you = p.popularity + Math.sqrt(Math.max(0, p.funds)) * 0.5 + p.loyalty * 0.15 + incumbency;
+    you = p.popularity + Math.sqrt(Math.max(0, p.funds)) * 0.5 + p.loyalty * 0.15 + incumbency + groupsEdge;
     them = r.popularity + Math.sqrt(r.funds) * 0.5 + 3;
   }
   return { you: Math.max(1, you), them: Math.max(1, them) };
@@ -77,7 +82,7 @@ function log(g: GameState, line: string): GameState {
 }
 
 function makeCampaign(g: GameState, p: Player, office: OfficeId, incumbent: boolean, rng: Rng): Campaign {
-  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, incumbent ? 15 + p.popularity * 0.65 + (100 - p.city!.happiness) * 0.3 : 21), poll: 50, incumbent };
+  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, incumbent ? 15 + p.popularity * 0.65 + (100 - p.city!.happiness) * 0.3 : 16), poll: 50, incumbent };
   return { ...c, poll: pollShare(g, p, c, rng) };
 }
 
@@ -87,6 +92,7 @@ export function startCareer(g: GameState, name: string, countryId: string, rng: 
   const player: Player = {
     name, countryId, office: null, popularity: 12, funds: 50, age: 30, loyalty: 20, actionsLeft: ACTIONS_PER_MONTH,
     campaign: null, city, termMonthsLeft: 0, pendingEvent: null, record: { won: 0, lost: 0 },
+    groups: startingGroups(rng), monthsInOffice: 0,
   };
   player.campaign = makeCampaign(g, player, sys.ladder[0], false, rng);
   const verb = sys.advancement === 'election' ? 'announces a run' : sys.advancement === 'shares' ? 'seeks a board seat' : 'seeks party nomination';
@@ -112,8 +118,10 @@ export function applyEffects(p: Player, e: Effects): Player {
     happiness: clamp(p.city.happiness + (e.happiness ?? 0), 0, 100),
     culture: clamp(p.city.culture + (e.culture ?? 0), 0, 100),
   } : null;
+  const groups = { ...p.groups };
+  for (const g of GROUP_IDS) groups[g] = clamp(groups[g] + (e.groups?.[g] ?? 0), 0, 100);
   return {
-    ...p, city,
+    ...p, city, groups,
     popularity: clamp(p.popularity + (e.popularity ?? 0), 0, 100),
     funds: Math.max(0, p.funds + (e.funds ?? 0)),
     loyalty: clamp(p.loyalty + (e.loyalty ?? 0), 0, 100),
@@ -140,7 +148,7 @@ export function doAction(g: GameState, action: CampaignAction, rng: Rng): GameSt
     case 'door-knock': e = { popularity: dim(p.popularity, 1, 2) }; msg = 'knocks on doors all weekend'; break;
     case 'party-work': e = { loyalty: dim(p.loyalty, 3, 6) }; msg = 'works the party machine'; break;
     case 'buy-shares': e = { ...e, loyalty: dim(p.loyalty, 5, 9) }; msg = 'quietly buys voting shares'; break;
-    case 'town-hall': e = { happiness: r(1, 3), popularity: r(1, 3) }; msg = 'holds a town hall'; break;
+    case 'town-hall': e = { happiness: p.city && p.city.happiness < 70 ? r(1, 2) : 0, popularity: dim(p.popularity, 1, 3) }; msg = 'holds a town hall'; break;
     case 'debate': {
       const edge = (p.popularity - p.campaign!.rival.popularity) / 100 + (rng() - 0.5);
       const swing = Math.round(edge * 12);
@@ -176,16 +184,36 @@ function resolveElection(g: GameState, rng: Rng): GameState {
   const share = pollShare(g, p, c, rng, 3);
   const won = share >= 50;
   const office = OFFICE_NAMES[c.office];
+  const movingUp = !!p.office && p.office !== c.office;
   const how = sys.advancement === 'election' ? `${share.toFixed(1)}% of the vote` : sys.advancement === 'shares' ? `${share.toFixed(1)}% of shareholder votes` : 'the party committee\'s decision';
+  const record = won ? { ...p.record, won: p.record.won + 1 } : { ...p.record, lost: p.record.lost + 1 };
   if (won) {
     const player: Player = {
-      ...p, office: c.office, campaign: null, termMonthsLeft: sys.termYears * 12,
-      record: { ...p.record, won: p.record.won + 1 }, popularity: clamp(p.popularity + 5, 0, 100),
+      ...p, office: c.office, campaign: null, termMonthsLeft: sys.termYears * 12, record,
+      monthsInOffice: c.incumbent ? p.monthsInOffice : 0, popularity: clamp(p.popularity + 5, 0, 100),
     };
-    return log({ ...g, player }, `${p.name} ${c.incumbent ? 'is re-elected' : 'becomes'} ${office} of ${p.city!.name} with ${how}.`);
+    const where = c.office === sys.ladder[0] ? ` of ${p.city!.name}` : '';
+    return log({ ...g, player }, `${p.name} ${c.incumbent ? 'is re-elected' : 'becomes'} ${office}${where} with ${how}.`);
   }
-  const player: Player = { ...p, office: null, campaign: null, termMonthsLeft: 0, record: { ...p.record, lost: p.record.lost + 1 } };
+  if (movingUp) {
+    // Losing a bid for higher office costs face but not your current job.
+    const player: Player = { ...p, campaign: null, record, popularity: clamp(p.popularity - 5, 0, 100) };
+    return log({ ...g, player }, `${p.name} loses the race for ${office} to ${c.rival.name} (${how}) and stays on as ${OFFICE_NAMES[p.office!]}.`);
+  }
+  const player: Player = { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, record };
   return log({ ...g, player }, `${p.name} loses to ${c.rival.name} (${how}).`);
+}
+
+/** Start a campaign for the next rung while keeping your current office. */
+export function runForHigher(g: GameState, office: OfficeId, rng: Rng): GameState {
+  const p = g.player;
+  if (!p?.office || p.campaign || p.actionsLeft <= 0) return g;
+    // Higher office means a stronger field. In elections the rival scales with your fame; elsewhere with the post.
+  const mode = SYSTEMS[g.countries[p.countryId].systemId].advancement;
+  const strength = mode === 'election' ? 27 + p.popularity * 0.55 : 68;
+  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, strength), poll: 50, incumbent: false };
+  const player = { ...p, actionsLeft: p.actionsLeft - 1, campaign: { ...c, poll: pollShare(g, p, c, rng) } };
+  return log({ ...g, player }, `${p.name} announces a run for ${OFFICE_NAMES[office]}. Opponent: ${c.rival.name} (${c.rival.party}).`);
 }
 
 /** Player-side monthly update; runs after the world tick. */
@@ -194,14 +222,23 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
   if (!p) return g;
   const country = g.countries[p.countryId];
   p = { ...p, actionsLeft: ACTIONS_PER_MONTH, age: g.month === 1 ? p.age + 1 : p.age };
+  const done: string[] = [];
 
   if (p.office && p.city) {
-    const city = tickCity(p.city, country, rng);
-    p = { ...p, city, popularity: clamp(p.popularity + (city.happiness - p.popularity) * 0.08, 0, 100), termMonthsLeft: p.termMonthsLeft - 1 };
+    const built = tickBuilds(tickCity(p.city, country, rng));
+    let city = tickCouncil(built.city, p.popularity);
+    p = { ...p, city, popularity: clamp(p.popularity + (city.happiness - p.popularity) * 0.15, 0, 100), termMonthsLeft: p.termMonthsLeft - 1, monthsInOffice: p.monthsInOffice + 1 };
+    for (const proj of built.finished) {
+      p = applyEffects(p, { groups: proj.groups, popularity: 4 });
+      done.push(`${p.name} cuts the ribbon on the ${proj.name}.`);
+    }
+    city = p.city!;
   } else {
     p = { ...p, popularity: clamp(p.popularity - 0.3, 0, 100) };
   }
+  p = tickGroups(p);
   let next: GameState = { ...g, player: p };
+  for (const line of done) next = log(next, line);
 
   if (p.campaign) {
     const rival = { ...p.campaign.rival, popularity: clamp(p.campaign.rival.popularity + rng() * 2.5, 0, 95), funds: p.campaign.rival.funds + Math.round(rng() * 15) };
@@ -215,8 +252,9 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
   }
 
   p = next.player!;
-  if (p.office && !p.pendingEvent && rng() < 0.35) {
+  if (p.office && !p.pendingEvent && rng() < 0.3) {
     next = { ...next, player: { ...p, pendingEvent: pick(CITY_EVENTS, rng) } };
   }
   return next;
 }
+

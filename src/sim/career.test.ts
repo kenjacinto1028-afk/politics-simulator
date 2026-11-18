@@ -119,6 +119,7 @@ describe('save/load', () => {
   it('rejects bad files', () => {
     expect(() => deserialize('{}')).toThrow();
     expect(() => deserialize(JSON.stringify({ version: 99, game: {} }))).toThrow();
+    expect(() => deserialize(JSON.stringify({ version: 1, game: { turn: 0 } }))).toThrow();
     expect(() => deserialize('not json')).toThrow();
   });
 });

@@ -15,3 +15,10 @@
 - [x] UI: campaign, city, event modal, save menu — src/ui/Game.tsx
 - [x] Tests + build green — 14 tests; balance ~60-65% first-race win for active play
 - [x] Push branch + open PR
+
+## Easier race + richer Mayor (branch feat/save-load-mayor)
+- [ ] Design doc — docs/MAYOR_DESIGN.md
+- [ ] Engine: voter groups, council, projects, laws, tips, next office — src/sim/mayor.ts, src/data/city-content.ts
+- [ ] Balance: first race ~75%, tests
+- [ ] UI (Sonnet): groups, council, projects, laws, tips — src/ui/
+- [ ] Browser play-test, republish play link, push
