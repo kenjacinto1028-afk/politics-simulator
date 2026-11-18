@@ -54,6 +54,18 @@ describe('governor', () => {
     expect(vetoed.legislature.goodwill).toBeLessThan(goodwill);
   });
 
+  it('bills are spaced at least 3 months apart', () => {
+    let g = governor(11);
+    const months: number[] = [];
+    for (let i = 0; i < 48; i++) {
+      g = advanceMonth(g, rngFor(g));
+      if (g.player!.pendingEvent) g = resolveEvent(g, 0);
+      if (g.player!.region!.pendingBill) { months.push(g.turn); g = decideBill(g, true); }
+    }
+    expect(months.length).toBeGreaterThan(4);
+    for (let i = 1; i < months.length; i++) expect(months[i] - months[i - 1]).toBeGreaterThanOrEqual(3);
+  });
+
   it('laws pass with a friendly legislature and fail with a hostile one', () => {
     const g = governor();
     const law = STATE_LAWS.find((l) => l.id === 'prek')!;

@@ -43,7 +43,7 @@ function migrateV2(g: GameState): GameState {
   const rung = p.office ? ladder.indexOf(p.office) : p.record.won > 0 ? 0 : -1;
   // A v2 Governor had no state yet; create one around the home city.
   const region = p.region ?? (p.office && kindOf(p.office) === 'regional' && p.city ? newRegion(p.city.name, makeRng(g.seed + 1)) : null);
-  return { ...g, player: { ...p, region, termsInOffice: p.termsInOffice ?? (p.office ? 1 : 0), highestRung: p.highestRung ?? rung, recentEvents: p.recentEvents ?? [], lastEventTurn: p.lastEventTurn ?? -99 } };
+  return { ...g, player: { ...p, region: region && { ...region, billCooldown: region.billCooldown ?? 0 }, termsInOffice: p.termsInOffice ?? (p.office ? 1 : 0), highestRung: p.highestRung ?? rung, recentEvents: p.recentEvents ?? [], lastEventTurn: p.lastEventTurn ?? -99 } };
 }
 
 /** v1 saves predate voter groups, the council, projects and laws. */

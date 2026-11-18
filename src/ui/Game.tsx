@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
-import { ACTION_INFO, STANDING_LABEL, availableActions } from '../sim/career';
+import { ACTION_INFO, STANDING_LABEL, availableActions, comebackOptions } from '../sim/career';
 import { cityRevenue } from '../sim/city';
 import type { City, SpendKey } from '../sim/types';
 import { campaignTip } from '../sim/mayor';
@@ -12,6 +12,8 @@ import { Council } from './Council';
 import { Projects } from './Projects';
 import { Laws } from './Laws';
 import { HigherOffice } from './HigherOffice';
+import { kindOf } from '../sim/offices';
+import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 
 const n0 = (n: number) => Math.round(n).toString();
 const fmt = (n: number, d = 1) => n.toFixed(d);
@@ -47,8 +49,11 @@ export function Game() {
   const sys = SYSTEMS[home.systemId];
   const c = p.campaign;
   const city = p.city;
-  const actions = availableActions(sys.advancement, !!c, !!p.office);
-  const title = p.office ? `${OFFICE_NAMES[p.office]} of ${city?.name}` : c ? `Candidate for ${OFFICE_NAMES[c.office]}` : 'Out of office';
+  const kind = kindOf(p.office);
+  const governor = kind === 'regional' && !!p.region;
+  const bill = !!p.region?.pendingBill;
+  const actions = availableActions(sys.advancement, !!c, !!p.office, kind === 'local');
+  const title = p.office ? `${OFFICE_NAMES[p.office]} of ${governor ? p.region!.name : city?.name}` : c ? `Candidate for ${OFFICE_NAMES[c.office]}` : 'Out of office';
 
   return (
     <div className="grid">
@@ -68,7 +73,7 @@ export function Game() {
           <div><b>{p.actionsLeft}</b><span>Actions</span></div>
         </div>
         <div className="row">
-          <button onClick={nextTurn} disabled={!!p.pendingEvent}>Next month →</button>
+          <button onClick={nextTurn} disabled={!!p.pendingEvent || bill}>Next month →</button>
           <button className="secondary small" onClick={quitToMenu}>Main menu</button>
         </div>
       </div>
@@ -88,9 +93,11 @@ export function Game() {
 
       {!c && !p.office && (
         <div className="panel">
-          <h3>You lost.</h3>
-          <p>Politics is a long game. Rebuild and try again.</p>
-          <button onClick={runAgain}>Run again</button>
+          <h3>Out of office</h3>
+          <p>You lost your last race, but politics is a long game. Build up your popularity and funds, then pick your next run.</p>
+          <div className="actions">
+            {comebackOptions(game).map((o) => <button key={o} onClick={() => runAgain(o)}>Run for {OFFICE_NAMES[o]}</button>)}
+          </div>
         </div>
       )}
 
@@ -101,7 +108,7 @@ export function Game() {
             const info = ACTION_INFO[a];
             const locked = a === 'debate' && (!c || c.monthsLeft > 2);
             return (
-              <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent} onClick={() => act(a)}>
+              <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent || bill} onClick={() => act(a)}>
                 {info.label}<small>{info.hint}{info.cost ? ` · $${info.cost}k` : ''}</small>
               </button>
             );
@@ -111,7 +118,16 @@ export function Game() {
 
       <VoterGroups />
 
-      {city && (
+      {governor && (
+        <>
+          <StateOverview />
+          <Cities />
+          <Legislature />
+          <StateLaws />
+        </>
+      )}
+
+      {!governor && city && (
         <div className="panel">
           <h3>{city.name} <span className="muted">pop. {n0(city.population)}k</span></h3>
           <div className="cols">
@@ -128,9 +144,9 @@ export function Game() {
         </div>
       )}
 
-      {p.office && city && <Council />}
-      {p.office && city && <Projects />}
-      {p.office && city && <Laws />}
+      {!governor && p.office && city && <Council />}
+      {!governor && p.office && city && <Projects />}
+      {!governor && p.office && city && <Laws />}
       {p.office && <HigherOffice />}
 
       <div className="panel">
@@ -159,7 +175,7 @@ export function Game() {
 
       <SaveMenu canSave />
 
-      {p.pendingEvent && (
+      {p.pendingEvent ? (
         <div className="modal">
           <div className="panel">
             <h3>{p.pendingEvent.title}</h3>
@@ -169,7 +185,7 @@ export function Game() {
             </div>
           </div>
         </div>
-      )}
+      ) : governor && bill ? <BillModal /> : null}
     </div>
   );
 }

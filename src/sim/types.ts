@@ -131,6 +131,8 @@ export interface Region {
   /** Bill waiting for your signature or veto. */
   pendingBill: string | null;
   recentBills: string[];
+  /** Months before another bill can arrive. */
+  billCooldown: number;
   lastAddressTurn: number;
 }
 

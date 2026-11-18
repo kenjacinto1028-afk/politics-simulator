@@ -29,7 +29,7 @@ export function newRegion(homeCity: string, rng: Rng): Region {
     name: pick(STATE_NAMES, rng), taxRate: 5, budget: { ...DEFAULT_BUDGET }, treasury: 400,
     stats: { education: 50, health: 50, infrastructure: 50, safety: 50, economy: 50 },
     happiness: 50, cities, legislature: { seats, yourParty: Math.round(20 + rng() * 14), goodwill: 50 },
-    laws: [], pendingBill: null, recentBills: [], lastAddressTurn: -99,
+    laws: [], pendingBill: null, recentBills: [], billCooldown: 2, lastAddressTurn: -99,
   };
 }
 
@@ -70,9 +70,13 @@ export function tickRegion(r: Region, country: Country, popularity: number, rng:
   }));
   const legislature = { ...r.legislature, goodwill: clamp(r.legislature.goodwill + (pull - r.legislature.goodwill) * 0.05, 0, 100) };
   let next: Region = { ...r, stats, happiness, cities, legislature, treasury: r.treasury + regionRevenue(r) * RESERVE_RATE };
-  if (!next.pendingBill && rng() < 0.3) {
+  // At most one bill every 3 months, and none of the last 5 bills again.
+  const roll = rng();
+  if (!next.pendingBill && next.billCooldown <= 0 && roll < 0.45) {
     const pool = BILLS.filter((b) => !r.recentBills.includes(b.id));
-    if (pool.length) { const b = pick(pool, rng); next = { ...next, pendingBill: b.id, recentBills: [b.id, ...r.recentBills].slice(0, 5) }; }
+    if (pool.length) { const b = pick(pool, rng); next = { ...next, pendingBill: b.id, recentBills: [b.id, ...r.recentBills].slice(0, 5), billCooldown: 3 }; }
+  } else {
+    next = { ...next, billCooldown: (next.billCooldown ?? 0) - 1 };
   }
   return next;
 }

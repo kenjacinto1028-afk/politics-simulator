@@ -1,16 +1,17 @@
 import { GROUPS } from '../data/city-content';
+import { STAT_LABEL } from '../data/state-content';
 import type { GroupId } from '../sim/types';
 
-const STAT_NAMES: Record<string, string> = { happiness: 'happiness', jobs: 'jobs', services: 'services', culture: 'culture', crime: 'crime' };
+const STAT_NAMES: Record<string, string> = { happiness: 'happiness', jobs: 'jobs', services: 'services', culture: 'culture', crime: 'crime', ...Object.fromEntries(Object.entries(STAT_LABEL).map(([k, v]) => [k, v.toLowerCase()])) };
 
 /** Colored list of what a project or law changes. For crime, lower is better. */
-export function Effects({ stats, groups, revenue }: { stats: Partial<Record<string, number>>; groups: Partial<Record<GroupId, number>>; revenue?: number }) {
+export function Effects({ stats, groups, revenue }: { stats?: Partial<Record<string, number>>; groups?: Partial<Record<GroupId, number>>; revenue?: number }) {
   const items: { text: string; good: boolean }[] = [];
-  for (const [k, v] of Object.entries(stats)) {
+  for (const [k, v] of Object.entries(stats ?? {})) {
     if (!v) continue;
     items.push({ text: `${v > 0 ? '+' : ''}${v} ${STAT_NAMES[k] ?? k}`, good: k === 'crime' ? v < 0 : v > 0 });
   }
-  for (const [k, v] of Object.entries(groups)) {
+  for (const [k, v] of Object.entries(groups ?? {})) {
     if (!v) continue;
     items.push({ text: `${GROUPS[k as GroupId].name} ${v > 0 ? '+' : ''}${v}`, good: v > 0 });
   }

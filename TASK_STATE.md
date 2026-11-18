@@ -22,3 +22,10 @@
 - [x] Balance: first race ~75%, higher office ~55-65%, 21 tests — src/sim/mayor.test.ts
 - [x] UI (Sonnet): groups, council, projects, laws, tips — src/ui/*.tsx
 - [x] Browser play-test, republish play link, push
+
+## Bug fixes + Governor (branch feat/save-load-mayor)
+- [x] Event repeats: hashed RNG seeds + event memory/cooldown — src/sim/engine.ts, career.ts
+- [x] Term rules: run higher only in final 6 months, lose = out of office, term limits, comebacks — career.ts, mayor.ts
+- [x] Governor engine: state, cities, legislature, bills, laws, events — src/sim/governor.ts, src/data/state-content.ts
+- [x] Governor UI (Sonnet) — src/ui/Governor.tsx
+- [x] Tests (29), browser check, play link v3, push
