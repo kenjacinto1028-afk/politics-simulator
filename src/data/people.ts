@@ -66,6 +66,3 @@ export const SYSTEM_RULES: Record<SystemId, { meter: string; meterBlurb: string;
   'corporate-state': { meter: 'Share value', meterBlurb: 'Rises with results. Pays you dividends every month.', rule: 'Your office is a business unit. Good results lift the share value, which pays you dividends. If it crashes, a hostile takeover can remove you.' },
 };
 
-export const FIRST_NAMES = ['Ada', 'Bruno', 'Carmen', 'Dmitri', 'Elif', 'Femi', 'Gwen', 'Hassan', 'Ines', 'Jun', 'Kofi', 'Lena', 'Mateo', 'Nadia', 'Oskar', 'Priya', 'Quentin', 'Rosa', 'Sami', 'Tova', 'Umar', 'Vera', 'Wen', 'Yara', 'Zoltan'];
-export const LAST_NAMES = ['Abe', 'Bianchi', 'Costa', 'Dahl', 'Ekwueme', 'Fischer', 'Garcia', 'Haddad', 'Ivanova', 'Jensen', 'Kaur', 'Lopez', 'Mbeki', 'Novak', 'Ortiz', 'Park', 'Quinn', 'Rossi', 'Silva', 'Tanaka', 'Usman', 'Vargas', 'Weber', 'Yilmaz', 'Zhou'];
-export const OTHER_CITIES = ['Ashford', 'Brightwater', 'Cedar Falls', 'Dunmore', 'Eastport', 'Fairhaven', 'Glenrock', 'Highmoor', 'Ironbridge', 'Kingsley', 'Lakeview', 'Millbrook', 'Northgate', 'Oakridge', 'Pinecrest', 'Riverton', 'Stonehill', 'Westfield'];

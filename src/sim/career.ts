@@ -1,5 +1,6 @@
 import { CAMPAIGN_MONTHS_CONST } from './constants';
-import { CITY_EVENTS, CITY_NAMES, RIVAL_FIRST, RIVAL_LAST, RIVAL_PARTIES } from '../data/events';
+import { CITY_EVENTS } from '../data/events';
+import { cityName, partyName, personName } from './names';
 import { SYSTEMS, OFFICE_NAMES } from '../data/systems';
 import { clamp, newCity, normalizeSpending, tickCity } from './city';
 import { GROUP_IDS, groupApproval, startingGroups, tickBuilds, tickCouncil, tickGroups } from './mayor';
@@ -61,9 +62,9 @@ export const STANDING_LABEL: Record<AdvancementMode, string> = {
   election: 'Party support', appointment: 'Party standing', shares: 'Shareholder stake',
 };
 
-function newRival(rng: Rng, strength: number): Rival {
+function newRival(rng: Rng, strength: number, countryId?: string): Rival {
   return {
-    name: `${pick(RIVAL_FIRST, rng)} ${pick(RIVAL_LAST, rng)}`, party: pick(RIVAL_PARTIES, rng),
+    name: personName(countryId, rng), party: partyName(countryId, rng),
     popularity: clamp(strength + rng() * 15, 5, 90), funds: Math.round(40 + rng() * 80),
   };
 }
@@ -124,20 +125,20 @@ function rivalStrength(g: GameState, p: Player, office: OfficeId, incumbent: boo
 }
 
 function makeCampaign(g: GameState, p: Player, office: OfficeId, incumbent: boolean, rng: Rng): Campaign {
-  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, incumbent)), poll: 50, incumbent };
+  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, incumbent), p.countryId), poll: 50, incumbent };
   return { ...c, poll: pollShare(g, p, c, rng) };
 }
 
 export function startCareer(g: GameState, name: string, countryId: string, rng: Rng, faith?: FaithId): GameState {
   const sys = SYSTEMS[g.countries[countryId].systemId];
   const myFaith = faith ?? g.countries[countryId].faith;
-  const city = newCity(pick(CITY_NAMES, rng), rng);
+  const city = newCity(cityName(countryId, rng), rng, countryId);
   const player: Player = {
     name, countryId, office: null, popularity: 12, funds: 50, age: 30, loyalty: 20, actionsLeft: ACTIONS_PER_MONTH,
     campaign: null, city, termMonthsLeft: 0, pendingEvent: null, record: { won: 0, lost: 0 },
     groups: startingGroups(rng), monthsInOffice: 0, recentEvents: [], lastEventTurn: -99,
     region: null, seat: null, ministry: null, nation: null, retired: false, termsInOffice: 0, highestRung: -1,
-    faith: myFaith, clergy: 50, contacts: newContacts(g.countries[countryId], myFaith, rng), sys: newSystemState(),
+    faith: myFaith, clergy: 50, contacts: newContacts(g.countries[countryId], myFaith, rng, city.name), sys: newSystemState(),
   };
   player.campaign = makeCampaign(g, player, sys.ladder[0], false, rng);
   const verb = sys.advancement === 'election' ? 'announces a run' : sys.advancement === 'shares' ? 'seeks a board seat' : 'seeks party nomination';
@@ -264,7 +265,7 @@ function resolveElection(g: GameState, rng: Rng): GameState {
       monthsInOffice: newJob ? 0 : p.monthsInOffice, termsInOffice: newJob ? 1 : p.termsInOffice + 1,
       highestRung: Math.max(p.highestRung, rung), popularity: clamp(p.popularity + 5, 0, 100),
     };
-    if (newJob && kindOf(c.office) === 'regional') player = { ...player, region: newRegion(p.city!.name, rng) };
+    if (newJob && kindOf(c.office) === 'regional') player = { ...player, region: newRegion(p.city!.name, rng, p.countryId) };
     if (newJob && kindOf(c.office) === 'legislative') player = { ...player, seat: newSeat(c.office, rng) };
     if (newJob && kindOf(c.office) === 'cabinet') player = { ...player, ministry: newMinistry(g.countries[p.countryId]) };
     if (newJob && kindOf(c.office) === 'head') player = { ...player, ministry: null, nation: p.nation ?? newNation(g.countries[p.countryId], rng) };
@@ -287,7 +288,7 @@ export function runForHigher(g: GameState, office: OfficeId, rng: Rng): GameStat
   const p = g.player;
   if (!p?.office || p.actionsLeft <= 0 || p.termMonthsLeft > CAMPAIGN_MONTHS) return g;
   if (p.campaign && !(p.campaign.incumbent && p.campaign.office === p.office)) return g;
-  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, false)), poll: 50, incumbent: false };
+  const c: Campaign = { office, monthsLeft: CAMPAIGN_MONTHS, rival: newRival(rng, rivalStrength(g, p, office, false), p.countryId), poll: 50, incumbent: false };
   // Endorsements were for the old race; ask again for the new one.
   const fresh = clearEndorsements(p);
   const player = { ...fresh, actionsLeft: p.actionsLeft - 1, campaign: { ...c, poll: pollShare(g, fresh, c, rng) } };
