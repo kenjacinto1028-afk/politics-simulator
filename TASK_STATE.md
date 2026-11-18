@@ -35,3 +35,12 @@
 - [x] Balance + tests (33) — src/sim/legislator.test.ts
 - [x] Lawmaker UI + funds tracker (Sonnet) — src/ui/Legislator.tsx, money.ts, Game.tsx, Governor.tsx, Projects.tsx
 - [x] Browser check (mayor, governor, senator saves), play link v4, push
+
+## Cabinet + Head of state (branch feat/save-load-mayor)
+- [x] Engines drafted — src/sim/cabinet.ts, src/sim/nation.ts, src/data/cabinet-content.ts, nation-content.ts
+- [ ] Wire into career/engine/save/store, PLAYABLE_KINDS
+- [ ] Tests + balance sims
+- [ ] Screens (Sonnet): Cabinet.tsx, Nation.tsx, funds tracker
+- [ ] Bug hunt 1: robot careers in all 8 systems
+- [ ] Bug hunt 2: browser click-through
+- [ ] Fix, play link v5, push, PR update

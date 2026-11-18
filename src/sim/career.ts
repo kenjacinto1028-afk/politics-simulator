@@ -8,6 +8,9 @@ import { kindOf } from './offices';
 import { STATE_EVENTS } from '../data/state-content';
 import { LEGISLATIVE_EVENTS } from '../data/legislature-content';
 import { newSeat, tickSeat } from './legislator';
+import { newMinistry, tickMinistry } from './cabinet';
+import { newNation, tickNation } from './nation';
+import { NATIONAL_EVENTS } from '../data/nation-content';
 import type { Rng } from './rng';
 import type { AdvancementMode, Campaign, City, Effects, GameState, OfficeId, Player, Rival, SpendKey } from './types';
 
@@ -94,7 +97,8 @@ function log(g: GameState, line: string): GameState {
 /** How happy the people you govern are: your state if Governor, otherwise your city. */
 export function officeHappiness(p: Player): number {
   if (kindOf(p.office) === 'regional' && p.region) return p.region.happiness;
-  if (kindOf(p.office) === 'legislative') return groupApproval(p);
+  if (kindOf(p.office) === 'legislative' || kindOf(p.office) === 'head') return groupApproval(p);
+  if (kindOf(p.office) === 'cabinet' && p.ministry) return p.ministry.performance;
   return p.city?.happiness ?? 50;
 }
 
@@ -122,7 +126,7 @@ export function startCareer(g: GameState, name: string, countryId: string, rng: 
     name, countryId, office: null, popularity: 12, funds: 50, age: 30, loyalty: 20, actionsLeft: ACTIONS_PER_MONTH,
     campaign: null, city, termMonthsLeft: 0, pendingEvent: null, record: { won: 0, lost: 0 },
     groups: startingGroups(rng), monthsInOffice: 0, recentEvents: [], lastEventTurn: -99,
-    region: null, seat: null, termsInOffice: 0, highestRung: -1,
+    region: null, seat: null, ministry: null, nation: null, retired: false, termsInOffice: 0, highestRung: -1,
   };
   player.campaign = makeCampaign(g, player, sys.ladder[0], false, rng);
   const verb = sys.advancement === 'election' ? 'announces a run' : sys.advancement === 'shares' ? 'seeks a board seat' : 'seeks party nomination';
@@ -139,7 +143,7 @@ export function comebackOptions(g: GameState): OfficeId[] {
 /** Start a fresh campaign while out of office. */
 export function runAgain(g: GameState, rng: Rng, office?: OfficeId): GameState {
   const p = g.player!;
-  if (p.campaign || p.office) return g;
+  if (p.campaign || p.office || p.retired) return g;
   const options = comebackOptions(g);
   const target = office && options.includes(office) ? office : options[0];
   const player = { ...p, campaign: makeCampaign(g, p, target, false, rng) };
@@ -149,10 +153,12 @@ export function runAgain(g: GameState, rng: Rng, office?: OfficeId): GameState {
 export function applyEffects(p: Player, e: Effects): Player {
   // Money from events comes out of whichever budget you run.
   const stateMoney = kindOf(p.office) === 'regional' && !!p.region;
+  // National jobs spend national money: handled by resolveEvent through the national debt.
+  const national = kindOf(p.office) === 'cabinet' || kindOf(p.office) === 'head';
   const region = stateMoney ? { ...p.region!, treasury: p.region!.treasury + (e.treasury ?? 0) } : p.region;
   const city: City | null = p.city ? {
     ...p.city,
-    treasury: p.city.treasury + (stateMoney ? 0 : e.treasury ?? 0),
+    treasury: p.city.treasury + (stateMoney || national ? 0 : e.treasury ?? 0),
     crime: clamp(p.city.crime + (e.crime ?? 0), 0, 100),
     services: clamp(p.city.services + (e.services ?? 0), 0, 100),
     jobs: clamp(p.city.jobs + (e.jobs ?? 0), 0, 100),
@@ -215,7 +221,15 @@ export function resolveEvent(g: GameState, choiceIndex: number): GameState {
   const ev = p?.pendingEvent;
   const choice = ev?.choices[choiceIndex];
   if (!p || !ev || !choice) return g;
-  return log({ ...g, player: { ...applyEffects(p, choice.effects), pendingEvent: null } }, `${ev.title}: ${choice.log}`);
+  let countries = g.countries;
+  const kind = kindOf(p.office);
+  if ((kind === 'cabinet' || kind === 'head') && choice.effects.treasury) {
+    // National events price money in $ billions; new spending adds to the national debt.
+    const c = g.countries[p.countryId];
+    const debtToGdp = clamp(c.economy.debtToGdp - (choice.effects.treasury / c.economy.gdpBn) * 100, 0, 400);
+    countries = { ...countries, [p.countryId]: { ...c, economy: { ...c.economy, debtToGdp } } };
+  }
+  return log({ ...g, countries, player: { ...applyEffects(p, choice.effects), pendingEvent: null } }, `${ev.title}: ${choice.log}`);
 }
 
 function resolveElection(g: GameState, rng: Rng): GameState {
@@ -237,12 +251,15 @@ function resolveElection(g: GameState, rng: Rng): GameState {
     };
     if (newJob && kindOf(c.office) === 'regional') player = { ...player, region: newRegion(p.city!.name, rng) };
     if (newJob && kindOf(c.office) === 'legislative') player = { ...player, seat: newSeat(c.office, rng) };
-    const where = kindOf(c.office) === 'local' ? ` of ${p.city!.name}` : kindOf(c.office) === 'regional' ? ` of ${player.region!.name}` : '';
+    if (newJob && kindOf(c.office) === 'cabinet') player = { ...player, ministry: newMinistry(g.countries[p.countryId]) };
+    if (newJob && kindOf(c.office) === 'head') player = { ...player, ministry: null, nation: p.nation ?? newNation(g.countries[p.countryId], rng) };
+    const k = kindOf(c.office);
+    const where = k === 'local' ? ` of ${p.city!.name}` : k === 'regional' ? ` of ${player.region!.name}` : k === 'head' ? ` of ${g.countries[p.countryId].name}` : '';
     return log({ ...g, player }, `${p.name} ${c.incumbent ? 'is re-elected' : 'becomes'} ${office}${where} with ${how}.`);
   }
-  // Any loss leaves you out of office: you gave up your old seat to run.
-  const player: Player = { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, termsInOffice: 0, record };
-  return log({ ...g, player }, `${p.name} loses the race for ${office} to ${c.rival.name} (${how}) and is out of office.`);
+  // Any loss leaves you out of office: you gave up your old seat to run. Losing the top job ends your career.
+  const player: Player = { ...p, office: null, campaign: null, termMonthsLeft: 0, monthsInOffice: 0, termsInOffice: 0, record, retired: atTop(g, p) };
+  return log({ ...g, player }, `${p.name} loses the race for ${office} to ${c.rival.name} (${how}) and is out of office.${player.retired ? ' The career is over.' : ''}`);
 }
 
 /**
@@ -258,22 +275,47 @@ export function runForHigher(g: GameState, office: OfficeId, rng: Rng): GameStat
   return log({ ...g, player }, `${p.name} skips re-election and runs for ${OFFICE_NAMES[office]}. Opponent: ${c.rival.name} (${c.rival.party}).`);
 }
 
+/** Holding the top office of the ladder: leaving it ends the career. */
+function atTop(g: GameState, p: Player): boolean {
+  const ladder = SYSTEMS[g.countries[p.countryId].systemId].ladder;
+  return !!p.office && ladder.indexOf(p.office) === ladder.length - 1;
+}
+
+/** Cabinet members keep their job at the end of a term if the leader still trusts them this much. */
+export const REAPPOINT_AT = 40;
+
 function eventPool(p: Player) {
   const kind = kindOf(p.office);
+  if (kind === 'cabinet' || kind === 'head') return NATIONAL_EVENTS;
   return kind === 'regional' ? STATE_EVENTS : kind === 'legislative' ? LEGISLATIVE_EVENTS : CITY_EVENTS;
 }
+
+const nextUp = (g: GameState) => {
+  const ladder = SYSTEMS[g.countries[g.player!.countryId].systemId].ladder;
+  const i = g.player!.office ? ladder.indexOf(g.player!.office) : -1;
+  return i >= 0 && i < ladder.length - 1;
+};
 
 /** Player-side monthly update; runs after the world tick. */
 export function tickPlayer(g: GameState, rng: Rng): GameState {
   let p = g.player;
-  if (!p) return g;
+  if (!p || p.retired) return g;
   const country = g.countries[p.countryId];
   const sys = SYSTEMS[country.systemId];
   p = { ...p, actionsLeft: ACTIONS_PER_MONTH, age: g.month === 1 ? p.age + 1 : p.age };
   const done: string[] = [];
   const kind = kindOf(p.office);
 
-  if (kind === 'legislative' && p.seat) {
+  let world = g;
+  if (kind === 'cabinet' && p.ministry) {
+    const t = tickMinistry({ ...g, player: p }, rng);
+    world = t.game; p = t.game.player!;
+    done.push(...t.lines);
+  } else if (kind === 'head' && p.nation) {
+    const t = tickNation({ ...g, player: p }, rng);
+    world = t.game; p = t.game.player!;
+    done.push(...t.lines);
+  } else if (kind === 'legislative' && p.seat) {
     const t = tickSeat(p, rng);
     p = t.player;
     done.push(...t.lines);
@@ -292,9 +334,14 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
     p = { ...p, popularity: clamp(p.popularity - 0.3, 0, 100) };
   }
   if (p.office) p = { ...p, termMonthsLeft: p.termMonthsLeft - 1, monthsInOffice: p.monthsInOffice + 1 };
-  // Lawmakers' district mood is handled in tickSeat.
-  if (kind !== 'legislative') p = tickGroups(p, kind === 'regional' && p.region ? regionGroupTargets(p) : undefined);
-  let next: GameState = { ...g, player: p };
+  // Lawmakers, ministers and leaders move their voter groups in their own ticks.
+  if (kind === 'local' || kind === 'regional' || !kind) p = tickGroups(p, kind === 'regional' && p.region ? regionGroupTargets(p) : undefined);
+  let next: GameState = { ...world, player: p };
+  if (kind && !p.office) {
+    // Fired from cabinet, or removed from power.
+    for (const line of done) next = log(next, line);
+    return next;
+  }
   for (const line of done) next = log(next, line);
 
   const termLimited = sys.termLimit !== null && p.termsInOffice >= sys.termLimit;
@@ -304,12 +351,20 @@ export function tickPlayer(g: GameState, rng: Rng): GameState {
     p = { ...p, campaign: { ...campaign, poll: pollShare(next, p, campaign, rng) } };
     next = { ...next, player: p };
     if (campaign.monthsLeft <= 0) next = resolveElection(next, rng);
+  } else if (p.office && p.termMonthsLeft <= 0 && kind === 'cabinet' && !termLimited && (p.ministry?.boss ?? 0) >= REAPPOINT_AT) {
+    // Cabinet jobs aren't elected: the leader keeps you on if they still trust you.
+    next = log({ ...next, player: { ...p, termMonthsLeft: sys.termYears * 12, termsInOffice: p.termsInOffice + 1 } }, `${country.leader.name} keeps ${p.name} on as ${OFFICE_NAMES[p.office]} for another term.`);
   } else if (p.office && p.termMonthsLeft <= 0) {
-    // Term over with no campaign (term-limited and didn't run higher): retire from this office.
-    next = log({ ...next, player: { ...p, office: null, termsInOffice: 0, monthsInOffice: 0 } }, `${p.name} leaves office as ${OFFICE_NAMES[p.office]} at the end of the term.`);
+    // Term over with no campaign (term-limited, dropped from cabinet, or didn't run higher): leave this office.
+    const retired = atTop(next, p);
+    const why = kind === 'cabinet' && !termLimited ? ' The leader drops them in a reshuffle.' : '';
+    next = log({ ...next, player: { ...p, office: null, termsInOffice: 0, monthsInOffice: 0, retired } },
+      `${p.name} leaves office as ${OFFICE_NAMES[p.office]} at the end of the term.${why}${retired ? ' The career is over.' : ''}`);
   } else if (p.office && p.termMonthsLeft === CAMPAIGN_MONTHS && termLimited) {
-    next = log(next, `${p.name} is term-limited as ${OFFICE_NAMES[p.office]}. Run for higher office now, or leave when the term ends.`);
-  } else if (p.office && p.termMonthsLeft <= CAMPAIGN_MONTHS && !termLimited) {
+    next = log(next, `${p.name} is term-limited as ${OFFICE_NAMES[p.office]}. ${nextUp(next) ? 'Run for higher office now, or leave' : 'This is the final stretch: the career ends'} when the term ends.`);
+  } else if (p.office && p.termMonthsLeft === CAMPAIGN_MONTHS && kind === 'cabinet') {
+    next = log(next, `Reshuffle in ${CAMPAIGN_MONTHS} months: keep the leader's trust at ${REAPPOINT_AT}+ to stay, or run for higher office.`);
+  } else if (p.office && p.termMonthsLeft <= CAMPAIGN_MONTHS && !termLimited && kind !== 'cabinet') {
     p = { ...p, campaign: makeCampaign(next, p, p.office, true, rng) };
     next = log({ ...next, player: p }, `Re-election season: ${p.campaign!.rival.name} (${p.campaign!.rival.party}) challenges ${p.name}. You can also run for higher office instead.`);
   }

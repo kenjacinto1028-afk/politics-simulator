@@ -2,6 +2,8 @@ import { seedCountries, type WorldSize } from '../data/countries';
 import type { Country, GameState } from './types';
 import { makeRng, type Rng } from './rng';
 import { tickPlayer } from './career';
+import { kindOf } from './offices';
+import { tickWorld } from './nation';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -22,10 +24,12 @@ function tickCountry(c: Country, rng: Rng): Country {
 
 export function advanceMonth(state: GameState, rng: Rng): GameState {
   const countries: Record<string, Country> = {};
-  for (const [id, c] of Object.entries(state.countries)) countries[id] = tickCountry(c, rng);
+  // The country you lead runs on the detailed national sim instead (see nation.ts).
+  const led = state.player && kindOf(state.player.office) === 'head' ? state.player.countryId : null;
+  for (const [id, c] of Object.entries(state.countries)) countries[id] = id === led ? c : tickCountry(c, rng);
   const month = state.month === 12 ? 1 : state.month + 1;
   const year = state.month === 12 ? state.year + 1 : state.year;
-  return tickPlayer({ ...state, turn: state.turn + 1, month, year, countries }, rng);
+  return tickPlayer(tickWorld({ ...state, turn: state.turn + 1, month, year, countries }, rng), rng);
 }
 
 /** Deterministic RNG for a given game moment; `salt` separates independent rolls within a turn. */

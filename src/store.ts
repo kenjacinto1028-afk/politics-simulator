@@ -4,9 +4,12 @@ import { doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer,
 import { courtLegislature, decideBill, grantCity, proposeStateLaw, repealStateLaw, setStateBudget, stateAddress, visitCity } from './sim/governor';
 import { castVote, chooseCommittee, crossAisle, dropBill, floorSpeech, gatherCosponsors, secureFunding, startSponsoring } from './sim/legislator';
 import type { CommitteeId } from './data/legislature-content';
+import { answerAsk, briefLeader, choosePortfolio, launchInitiative, mediaTour, requestBudget } from './sim/cabinet';
+import { courtParliament, declareWar, nationalAddress, proposeNationalLaw, repealNationalLaw, sanction, seekPeace, setNationalBudget, stateVisit, tradeDeal } from './sim/nation';
+import type { PortfolioId } from './data/cabinet-content';
 import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
-import type { GameState, GroupId, OfficeId, Region, SpendKey } from './sim/types';
+import type { GameState, GroupId, Nation, OfficeId, Region, SpendKey } from './sim/types';
 import type { WorldSize } from './data/countries';
 
 const kv = browserKV();
@@ -42,6 +45,22 @@ interface Store {
   startSponsoring: (id: string) => void;
   gatherCosponsors: () => void;
   dropBill: () => void;
+  choosePortfolio: (id: PortfolioId) => void;
+  launchInitiative: (id: string) => void;
+  briefLeader: () => void;
+  mediaTour: () => void;
+  requestBudget: () => void;
+  answerAsk: (back: boolean) => void;
+  nationalAddress: () => void;
+  courtParliament: () => void;
+  stateVisit: (countryId: string) => void;
+  tradeDeal: (countryId: string) => void;
+  sanction: (countryId: string) => void;
+  declareWar: (countryId: string) => void;
+  seekPeace: () => void;
+  proposeNationalLaw: (id: string) => void;
+  repealNationalLaw: (id: string) => void;
+  setNationalBudget: (taxRate: number, spending: number, priorities: Nation['priorities']) => void;
   meetGroup: (g: GroupId) => void;
   lobby: (memberIndex: number) => void;
   cutDeal: (memberIndex: number) => void;
@@ -65,7 +84,7 @@ export const useGame = create<Store>((set, get) => ({
   startCareer: (name, countryId) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99)) })),
   nextTurn: () => {
     const g = get().game;
-    if (g.player?.pendingEvent || g.player?.region?.pendingBill || g.player?.seat?.pendingVote) return;
+    if (g.player?.retired || g.player?.pendingEvent || g.player?.region?.pendingBill || g.player?.seat?.pendingVote || g.player?.ministry?.pendingAsk) return;
     const game = advanceMonth(g, rngFor(g));
     if (kv) saveTo(kv, 'autosave', game);
     set((s) => ({ game, saveRev: s.saveRev + 1 }));
@@ -90,6 +109,22 @@ export const useGame = create<Store>((set, get) => ({
   startSponsoring: (id) => set((s) => ({ game: startSponsoring(s.game, id) })),
   gatherCosponsors: () => set((s) => ({ game: gatherCosponsors(s.game, actionRng(s.game)) })),
   dropBill: () => set((s) => ({ game: dropBill(s.game) })),
+  choosePortfolio: (id) => set((s) => ({ game: choosePortfolio(s.game, id) })),
+  launchInitiative: (id) => set((s) => ({ game: launchInitiative(s.game, id) })),
+  briefLeader: () => set((s) => ({ game: briefLeader(s.game, actionRng(s.game)) })),
+  mediaTour: () => set((s) => ({ game: mediaTour(s.game, actionRng(s.game)) })),
+  requestBudget: () => set((s) => ({ game: requestBudget(s.game) })),
+  answerAsk: (back) => set((s) => ({ game: answerAsk(s.game, back) })),
+  nationalAddress: () => set((s) => ({ game: nationalAddress(s.game) })),
+  courtParliament: () => set((s) => ({ game: courtParliament(s.game, actionRng(s.game)) })),
+  stateVisit: (id) => set((s) => ({ game: stateVisit(s.game, id, actionRng(s.game)) })),
+  tradeDeal: (id) => set((s) => ({ game: tradeDeal(s.game, id) })),
+  sanction: (id) => set((s) => ({ game: sanction(s.game, id) })),
+  declareWar: (id) => set((s) => ({ game: declareWar(s.game, id) })),
+  seekPeace: () => set((s) => ({ game: seekPeace(s.game, actionRng(s.game)) })),
+  proposeNationalLaw: (id) => set((s) => ({ game: proposeNationalLaw(s.game, id, actionRng(s.game)) })),
+  repealNationalLaw: (id) => set((s) => ({ game: repealNationalLaw(s.game, id) })),
+  setNationalBudget: (t, sp, pr) => set((s) => ({ game: setNationalBudget(s.game, t, sp, pr) })),
   meetGroup: (grp) => set((s) => ({ game: meetGroup(s.game, grp, actionRng(s.game)) })),
   lobby: (i) => set((s) => ({ game: lobbyMember(s.game, i, actionRng(s.game)) })),
   cutDeal: (i) => set((s) => ({ game: cutDeal(s.game, i) })),

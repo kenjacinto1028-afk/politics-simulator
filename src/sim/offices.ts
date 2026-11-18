@@ -13,6 +13,6 @@ export const OFFICE_KIND: Record<OfficeId, OfficeKind> = {
 };
 
 /** Kinds that have full gameplay today. Others fall back to managing your home city. */
-export const PLAYABLE_KINDS: OfficeKind[] = ['local', 'regional', 'legislative'];
+export const PLAYABLE_KINDS: OfficeKind[] = ['local', 'regional', 'legislative', 'cabinet', 'head'];
 
 export const kindOf = (o: OfficeId | null): OfficeKind | null => (o ? OFFICE_KIND[o] : null);

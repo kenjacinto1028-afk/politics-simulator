@@ -67,6 +67,12 @@ export interface Player {
   region: Region | null;
   /** Your seat in a legislature once you are a lawmaker. */
   seat: Seat | null;
+  /** Your ministry once you are in the cabinet. */
+  ministry: Ministry | null;
+  /** Your country, once you lead it. */
+  nation: Nation | null;
+  /** Set when your career at the top ends. */
+  retired: boolean;
   /** Months until the current term ends. */
   termMonthsLeft: number;
   pendingEvent: PendingEvent | null;
@@ -140,6 +146,37 @@ export interface Seat {
   passed: string[];
   votesWithParty: number;
   votesAgainstParty: number;
+}
+
+export interface Ministry {
+  portfolio: 'finance' | 'health' | 'education' | 'interior' | 'foreign' | 'economy' | null;
+  /** Spendable ministry money, $ billions. Refills monthly up to 1.5x the annual base. */
+  budget: number;
+  /** Annual base budget, $ billions. */
+  baseBudget: number;
+  /** 0..100 — how well your ministry is seen to be doing. */
+  performance: number;
+  /** 0..100 — how the head of government sees you. Below 15 and you're fired. */
+  boss: number;
+  running: { id: string; monthsLeft: number }[];
+  done: string[];
+  pendingAsk: string | null;
+  askCooldown: number;
+}
+
+export interface Nation {
+  /** Tax revenue, % of GDP. */
+  taxRate: number;
+  /** Public spending before laws, % of GDP. */
+  spending: number;
+  priorities: Record<'defense' | 'welfare' | 'health' | 'education' | 'infrastructure', number>; // sums to 100
+  parliament: { name: string; seats: number; yourParty: number; goodwill: number };
+  laws: string[];
+  tradeDeals: string[];
+  war: { enemy: string; months: number; score: number } | null;
+  lastAddressTurn: number;
+  /** Builds up while you lead; shown when your career ends. */
+  legacy: number;
 }
 
 export interface Region {

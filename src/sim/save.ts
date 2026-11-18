@@ -4,9 +4,11 @@ import { makeRng } from './rng';
 import { newRegion } from './governor';
 import { newSeat } from './legislator';
 import { kindOf } from './offices';
+import { newMinistry } from './cabinet';
+import { newNation } from './nation';
 import { SYSTEMS } from '../data/systems';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const SLOTS = ['autosave', 'slot1', 'slot2', 'slot3'] as const;
 export type SlotId = (typeof SLOTS)[number];
 
@@ -34,7 +36,19 @@ export function deserialize(text: string): GameState {
   if (file.version < 2) out = migrateV1(out);
   if (file.version < 3) out = migrateV2(out);
   if (file.version < 4) out = migrateV3(out);
+  if (file.version < 5) out = migrateV4(out);
   return out;
+}
+
+/** v4 saves predate cabinet and head-of-state gameplay. */
+function migrateV4(g: GameState): GameState {
+  const p = g.player;
+  if (!p) return g;
+  const kind = kindOf(p.office);
+  const country = g.countries[p.countryId];
+  const ministry = p.ministry ?? (kind === 'cabinet' ? newMinistry(country) : null);
+  const nation = p.nation ?? (kind === 'head' ? newNation(country, makeRng(g.seed + 3)) : null);
+  return { ...g, player: { ...p, ministry, nation, retired: p.retired ?? false } };
 }
 
 /** v3 saves predate lawmaker gameplay. A lawmaker from then gets a fresh seat. */
