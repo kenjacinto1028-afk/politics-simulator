@@ -124,3 +124,16 @@
 - [x] Tutorial — src/ui/Extras.tsx
 - [x] Achievements — src/sim/achievements.ts, src/ui/Extras.tsx
 - [x] Tests (128), 43-save click-through, phone + computer check
+
+## Polish, scandals and reputation (branch claude/project-thread-oancur)
+- [ ] Fix twin city achievement
+- [ ] Playtime counter (total + per save)
+- [ ] New game name
+- [ ] High-contrast colors and buttons
+- [ ] Tabs + sub-tabs, sticky Next month / Menu bar
+- [ ] Filters + sorting on all tables
+- [ ] Home region support
+- [ ] Player traits + how politicians see you
+- [ ] Scandals (donor favors and more)
+- [ ] Event choices with real trade-offs, more options
+- [ ] Tests, phone + computer check, PR
