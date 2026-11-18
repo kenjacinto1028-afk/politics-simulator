@@ -127,8 +127,8 @@
 
 ## Polish, scandals and reputation (branch claude/project-thread-oancur)
 - [x] Fix twin city achievement — pact via politician deal + event now count; panel shows earned badges (achievements.ts, people.ts, Extras.tsx)
-- [ ] Playtime counter (total + per save)
-- [ ] New game name
+- [x] Playtime counter (total + per save) — src/sim/playtime.ts, App.tsx ticker, save slot labels, NewGame total
+- [x] New game name: Mandate — index.html, NewGame.tsx, README
 - [ ] High-contrast colors and buttons
 - [ ] Tabs + sub-tabs, sticky Next month / Menu bar
 - [ ] Filters + sorting on all tables

@@ -1,4 +1,5 @@
 import type { GameState } from './types';
+import { formatPlaytime } from './playtime';
 import { newCouncil } from './city';
 import { makeRng } from './rng';
 import { newRegion } from './governor';
@@ -33,7 +34,7 @@ export function serialize(game: GameState): string {
 
 export function deserialize(text: string): GameState {
   const file = JSON.parse(text) as Partial<SaveFile>;
-  if (!file || typeof file !== 'object' || !file.game) throw new Error('Not a Politics Simulator save file.');
+  if (!file || typeof file !== 'object' || !file.game) throw new Error('Not a Mandate save file.');
   if (typeof file.version !== 'number' || file.version < 1 || file.version > SAVE_VERSION) throw new Error(`Unsupported save version ${file.version}.`);
   const g = file.game;
   if (typeof g.turn !== 'number' || !g.countries) throw new Error('Save file is corrupted.');
@@ -147,7 +148,7 @@ export function listSlots(kv: KV): SlotInfo[] {
     try {
       const f = JSON.parse(text) as SaveFile;
       const p = f.game.player;
-      out.push({ slot, savedAt: f.savedAt, label: p ? `${p.name} · ${f.game.year}-${String(f.game.month).padStart(2, '0')}` : 'New world' });
+      out.push({ slot, savedAt: f.savedAt, label: p ? `${p.name} · ${f.game.year}-${String(f.game.month).padStart(2, '0')}${f.game.playSeconds ? ` · played ${formatPlaytime(f.game.playSeconds)}` : ''}` : 'New world' });
     } catch { /* skip corrupt slot */ }
   }
   return out;

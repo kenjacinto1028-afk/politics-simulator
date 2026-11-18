@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { addPlaySeconds, addTotalPlaySeconds } from './sim/playtime';
 import { advanceMonth, newGame, rngFor } from './sim/engine';
 import { blockingPrompt, doAction, resolveEvent, runAgain, runForHigher, setBudget, startCareer, ACTIONS_PER_MONTH, type CampaignAction } from './sim/career';
 import { courtLegislature, decideBill, grantCity, proposeStateLaw, repealStateLaw, setStateBudget, stateAddress, visitCity } from './sim/governor';
@@ -63,6 +64,8 @@ interface Store {
   inviteToBloc: (countryId: string) => void;
   backSide: (countryId: string, side: 'gov' | 'rebel') => void;
   nextTurn: () => void;
+  /** Adds real seconds played to this save and the overall total. */
+  tickPlaytime: (s: number) => void;
   retireNow: () => void;
   answerOffer: (accept: boolean) => void;
   backWar: (index: number, side: string) => void;
@@ -125,6 +128,7 @@ export const useGame = create<Store>((set, get) => ({
   game: newGame(25, freshSeed()),
   saveRev: 0,
   message: null,
+  tickPlaytime: (sec) => { if (!get().game.player) return; addTotalPlaySeconds(sec); set((s) => ({ game: addPlaySeconds(s.game, sec) })); },
   setWorldSize: (size) => set({ game: newGame(size, freshSeed()) }),
   startCareer: (name, countryId, faith) => set((s) => ({ game: startCareer(s.game, name, countryId, rngFor(s.game, 99), faith) })),
   meetContact: (id) => set((s) => ({ game: meetContact(s.game, id, actionRng(s.game)) })),

@@ -426,4 +426,6 @@ export interface GameState {
   wars?: AIWar[];
   world: WorldState;
   log: string[];
+  /** Real seconds played on this save. */
+  playSeconds?: number;
 }
