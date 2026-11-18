@@ -29,7 +29,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'decade', name: 'A decade at the top', icon: '⏳', blurb: 'Lead your country for 10 years.', check: (g) => topMonths(g) >= 120 },
   { id: 'comeback', name: 'Comeback kid', icon: '🔁', blurb: 'Lose 2 races and still reach the top.', check: (g) => g.player!.record.lost >= 2 && atTop(g) },
   { id: 'beloved', name: 'Beloved', icon: '❤️', blurb: 'Hit 90% popularity while in office.', check: (g) => !!g.player!.office && g.player!.popularity >= 90 },
-  { id: 'sister-city', name: 'Twin towns', icon: '🤝', blurb: 'Make a sister city abroad.', check: (g) => hasFeat(g, 'sister-city') },
+  { id: 'sister-city', name: 'Twin towns', icon: '🤝', blurb: 'Make a sister city abroad.', check: (g) => hasFeat(g, 'sister-city') || !!g.player!.abroad?.sisters.length || g.log.some((l) => /sister-city (pact|agreement)|becomes a sister/.test(l)) },
   { id: 'investor', name: 'Deal maker', icon: '💰', blurb: 'Bring home foreign investors from a trade trip.', check: (g) => hasFeat(g, 'investor') },
   { id: 'caught-spy', name: 'Spy catcher', icon: '🕵️', blurb: 'Catch foreign spies.', check: (g) => hasFeat(g, 'caught-spy') },
   { id: 'survived-coup', name: 'Survive a coup', icon: '🛡️', blurb: 'Stay in power through a coup attempt.', check: (g) => hasFeat(g, 'survived-coup') },

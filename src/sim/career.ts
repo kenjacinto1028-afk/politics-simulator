@@ -192,6 +192,7 @@ export function applyEffects(p: Player, e: Effects): Player {
     loyalty: clamp(p.loyalty + (e.loyalty ?? 0), 0, 100),
     clergy: clamp(p.clergy + (e.clergy ?? 0), 0, 100),
     sys: e.meter ? { ...p.sys, meter: clamp(p.sys.meter + e.meter, 0, 100) } : p.sys,
+    feats: e.feat && !p.feats?.includes(e.feat) ? [...(p.feats ?? []), e.feat] : p.feats,
   };
 }
 

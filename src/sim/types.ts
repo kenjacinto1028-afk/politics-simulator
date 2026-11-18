@@ -386,6 +386,8 @@ export interface Effects {
   contact?: number;
   popularity?: number; funds?: number; loyalty?: number;
   treasury?: number; crime?: number; services?: number; jobs?: number; happiness?: number; culture?: number;
+  /** Marks an achievement-worthy deed (see Player.feats). */
+  feat?: string;
 }
 
 export interface PendingEvent {

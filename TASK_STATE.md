@@ -126,7 +126,7 @@
 - [x] Tests (128), 43-save click-through, phone + computer check
 
 ## Polish, scandals and reputation (branch claude/project-thread-oancur)
-- [ ] Fix twin city achievement
+- [x] Fix twin city achievement — pact via politician deal + event now count; panel shows earned badges (achievements.ts, people.ts, Extras.tsx)
 - [ ] Playtime counter (total + per save)
 - [ ] New game name
 - [ ] High-contrast colors and buttons
