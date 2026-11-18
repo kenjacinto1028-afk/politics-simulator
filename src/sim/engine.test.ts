@@ -39,3 +39,13 @@ describe('world setup', () => {
     }
   });
 });
+
+describe('local names', () => {
+  it('every country has a local name', async () => {
+    const { LOCAL_NAMES, countryLabel } = await import('../data/local-names');
+    const { seedCountries } = await import('../data/countries');
+    for (const c of Object.values(seedCountries(50))) expect(LOCAL_NAMES[c.id], c.id).toBeTruthy();
+    expect(countryLabel({ id: 'deu', name: 'Germany' })).toBe('Germany (Deutschland)');
+    expect(countryLabel({ id: 'usa', name: 'United States' })).toBe('United States');
+  });
+});

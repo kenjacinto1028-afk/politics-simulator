@@ -44,3 +44,6 @@
 - [x] Bug hunt 1: robot careers in all 8 systems — careers.test.ts; fixed freeze from old-job prompts
 - [x] Bug hunt 2: browser click-through, 41 saves — fixed city panels showing for national jobs
 - [x] Fix, play link v5, push, PR update
+
+## Local country names (branch feat/local-names)
+- [x] Local names for all 50 countries, shown beside English names — src/data/local-names.ts, NewGame/Game/Nation/Retired
