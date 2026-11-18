@@ -1,3 +1,4 @@
+import { HallOfFame } from './Career';
 import { useState } from 'react';
 import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
@@ -52,6 +53,7 @@ export function NewGame() {
         </button>
       </div>
       <SaveMenu canSave={false} />
+      <HallOfFame />
     </>
   );
 }

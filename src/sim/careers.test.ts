@@ -12,6 +12,7 @@ import { kindOf } from './offices';
 import { askEndorsement, endorseBlocker, meetContact, visibleContacts } from './people';
 import { buyback, choosePatron, consultCoalition, lobbyCapital, negotiateUnions, patronBlocker, payRespects, royalOccasion } from './systems';
 import type { GameState, SystemId } from './types';
+import { summarize } from './history';
 
 /** First country of each system in the 10-country world. */
 const HOME: Record<SystemId, string> = {
@@ -126,6 +127,10 @@ function career(system: SystemId, seed: number, months = 480) {
     if (g.player!.office) topReached = Math.max(topReached, ladder.indexOf(g.player!.office));
   }
   if ((globalThis as { process?: { env: Record<string, string> } }).process?.env.DIAG) console.log(system, seed, 'top', topReached, '/', ladder.length - 1, 'turn', g.turn, 'retired', g.player!.retired, 'office', g.player!.office, 'rec', JSON.stringify(g.player!.record), '\n  ', g.log.filter((l) => /becomes|loses|re-elected|leaves|fires|removed|reconfirm|keeps|drops/.test(l)).slice(0, 8).reverse().join('\n   '));
+  if (g.player!.retired) {
+    expect(g.player!.history?.endReason, `${system} ${seed} end reason`).toBeTruthy();
+    expect(Number.isFinite(summarize(g).score)).toBe(true);
+  }
   return { g, topReached, top: ladder.length - 1 };
 }
 

@@ -23,3 +23,4 @@
 - 2026-11-18: Local names: cities, provinces/states, politicians, rivals and parties now come from each country (PH: Cebu City, Pampanga, Carmela Cruz...). Fantasy countries get invented local names. 83 tests pass.
 - 2026-11-18: Great powers and geopolitics: superpowers/great/regional/minor tiers, blocs, armies, nuclear deterrence, proxy civil wars, trade exports, allies who send aid or troops and call on you. 94 tests pass.
 - 2026-11-18: Deeper countries (simplified): 16 country scores (health, education, crime, housing, pollution, energy, corruption, press, etc.), 18 leader policies, living population, world climate/energy/outbreaks, disasters, spying, 40 new events. 100 tests pass.
+- 2026-11-18: End game: clear endings, career score and S–E rank, timeline + yearly chart, Hall of Fame of past runs. 105 tests pass.
