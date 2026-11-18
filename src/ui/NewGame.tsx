@@ -1,3 +1,4 @@
+import { formatPlaytime, totalPlaySeconds } from '../sim/playtime';
 import { HallOfFame } from './Career';
 import { AchievementsPanel, setTutorial, tutorialDefault } from './Extras';
 import { useState } from 'react';
@@ -27,7 +28,8 @@ export function NewGame() {
   return (
     <>
       <div className="panel">
-        <h1>Politics Simulator</h1>
+        <h1>Mandate <span className="muted small-text">from city hall to the top</span></h1>
+        {totalPlaySeconds() > 0 && <p className="muted small-text">Total time played: {formatPlaytime(totalPlaySeconds())}</p>}
         <label>Your name <input value={name} onChange={(e) => setName(e.target.value)} /></label>
         <label>World size
           <select value={game.worldSize} onChange={(e) => setWorldSize(Number(e.target.value) as WorldSize)}>

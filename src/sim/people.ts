@@ -219,6 +219,7 @@ export function jointDeal(g: GameState, id: string): GameState {
   let what = '';
   if (kind === 'local' && next.city) {
     next = { ...next, popularity: clamp(next.popularity + 2, 0, 100), city: { ...next.city, jobs: clamp(next.city.jobs + 3, 0, 100), culture: clamp(next.city.culture + 2, 0, 100) } };
+    next = { ...next, feats: next.feats?.includes('sister-city') ? next.feats : [...(next.feats ?? []), 'sister-city'] };
     what = 'a sister-city pact';
   } else if (kind === 'regional' && next.region) {
     next = { ...next, popularity: clamp(next.popularity + 2, 0, 100), region: { ...next.region, treasury: next.region.treasury + 60 } };

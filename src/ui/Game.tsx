@@ -1,8 +1,10 @@
 import { CareerSoFar } from './Career';
 import { CountryScores } from './Society';
 import { WorldPower } from './WorldPower';
-import { TIERS, tierOf } from '../sim/geo';
-import { BLOCS } from '../data/geo';
+import { WorldTable } from './WorldTable';
+import { HomeTurf, PlaytimePanel, Reputation, Skeletons } from './You';
+import { scandalRisk } from '../sim/scandals';
+import { formatPlaytime } from '../sim/playtime';
 import { useEffect, useState } from 'react';
 import { useGame } from '../store';
 import { OFFICE_NAMES, SYSTEMS } from '../data/systems';
@@ -29,14 +31,14 @@ import { CountUp, EventArt, MuteButton, SoundSettings } from './Juice';
 import { Flag } from './Flag';
 import { Portrait } from './Portrait';
 import { WorldContact } from './Abroad';
-import { LeaderCardModal, LeaderLink } from './LeaderCard';
+import { LeaderCardModal } from './LeaderCard';
 import { AchievementsPanel, Coach } from './Extras';
 import { BillModal, Cities, Legislature, StateLaws, StateOverview } from './Governor';
 import { countryLabel } from '../data/local-names';
 import { SYSTEM_RULES } from '../data/people';
 import { People, FaithPanel } from './People';
 import { SystemPanel } from './SystemPanel';
-import { eventExtras } from './effects';
+import { EffectLines, eventExtras } from './effects';
 import { contactById } from '../sim/people';
 
 function useIsPhone() {
@@ -53,8 +55,8 @@ function useIsPhone() {
   return phone;
 }
 
-type Tab = 'job' | 'voters' | 'people' | 'world' | 'more';
-const TABS: [Tab, string][] = [['job', 'Job'], ['voters', 'Voters'], ['people', 'People'], ['world', 'World'], ['more', 'More']];
+type Tab = 'job' | 'voters' | 'people' | 'you' | 'world' | 'more';
+const TABS: [Tab, string][] = [['job', 'Job'], ['voters', 'Voters'], ['people', 'People'], ['you', 'You'], ['world', 'World'], ['more', 'More']];
 
 const n0 = (n: number) => Math.round(n).toString();
 const fmt = (n: number, d = 1) => n.toFixed(d);
@@ -82,12 +84,24 @@ function BudgetEditor({ city }: { city: City }) {
   );
 }
 
+type Sub = [string, string];
+
+function SubTabs({ tabs, value, onChange }: { tabs: Sub[]; value: string; onChange: (v: string) => void }) {
+  if (tabs.length < 2) return null;
+  return (
+    <div className="subtabs" role="tablist">
+      {tabs.map(([id, label]) => (
+        <button key={id} role="tab" aria-selected={value === id} className={`subtab${value === id ? ' active' : ''}`} onClick={() => onChange(id)}>{label}</button>
+      ))}
+    </div>
+  );
+}
+
 export function Game() {
   const { game, nextTurn, act, resolveEvent, runAgain, quitToMenu } = useGame();
-  const [showWorld, setShowWorld] = useState(false);
   const phone = useIsPhone();
   const [tab, setTab] = useState<Tab>('job');
-  const on = (t: Tab) => !phone || tab === t;
+  const [subs, setSubs] = useState<Partial<Record<Tab, string>>>({});
   const p = game.player!;
   const home = game.countries[p.countryId];
   const sys = SYSTEMS[home.systemId];
@@ -117,6 +131,27 @@ export function Game() {
   if (p.retired) return <Retired />;
   const blockedNext = !!p.pendingEvent || bill || voting || asking;
   const needsAnswer = blockedNext;
+  const localCity = !governor && !lawmaker && !minister && !leader && !!city;
+  const abroad = !!p.office && (kind === 'local' || kind === 'regional');
+
+  // Sub-tabs for each tab. The first one is the default.
+  const jobSubs: Sub[] = governor ? [['main', 'State'], ['cities', 'Cities'], ['legis', 'Legislature'], ['laws', 'Laws']]
+    : kind === 'local' && city ? [['main', 'City'], ['council', 'Council'], ['projects', 'Projects'], ['laws', 'Laws']]
+    : leader ? [['main', 'Nation']] : [['main', lawmaker ? 'Your seat' : minister ? 'Ministry' : 'Overview']];
+  if (abroad) jobSubs.push(['abroad', 'Abroad']);
+  if (p.office) jobSubs.push(['next', 'Next step']);
+  const SUBS: Record<Tab, Sub[]> = {
+    job: jobSubs,
+    voters: [['actions', 'Actions'], ['groups', 'Voter groups'], ['faith', 'Faith']],
+    people: [['politicians', 'Politicians'], ['system', SYSTEM_RULES[home.systemId].meter]],
+    you: [['rep', 'Reputation'], ['home', 'Home turf'], ['scandals', 'Scandals'], ['career', 'Career']],
+    world: [['news', 'News'], ['countries', 'Countries'], ['power', 'Powers'], ['scores', 'Country scores'], ...(leader ? [['diplomacy', 'Diplomacy'] as Sub] : [])],
+    more: [['saves', 'Saves'], ['achievements', 'Achievements'], ['settings', 'Sound & time']],
+  };
+  const sub = (t: Tab) => { const list = SUBS[t]; const v = subs[t]; return list.some(([id]) => id === v) ? v! : list[0][0]; };
+  const s = sub(tab);
+  const at = (t: Tab, id: string) => tab === t && s === id;
+  const goTab = (t: Tab) => { setTab(t); window.scrollTo(0, 0); };
 
   return (
     <div className={phone ? 'grid phone' : 'grid'}>
@@ -126,7 +161,7 @@ export function Game() {
           <p>{title} · <Flag id={home.id} size={14} /> {countryLabel(home)} <span className="muted">({sys.name})</span></p>
           <p className="muted">
             {game.year}-{String(game.month).padStart(2, '0')} · Age {p.age} · Record {p.record.won}W–{p.record.lost}L
-            {p.office && ` · Term: ${p.termMonthsLeft} mo left`}
+            {p.office && ` · Term: ${p.termMonthsLeft} mo left`} · Played {formatPlaytime(game.playSeconds ?? 0)}
           </p>
         </div>
         <div className="kpis">
@@ -135,140 +170,135 @@ export function Game() {
           {money && <div><b className={money.value < 0 ? 'neg' : ''}>{money.bn ? `$${money.value.toFixed(1)}bn` : money.debt ? `${Math.round(money.value)}%` : k(money.value)}</b><span>{money.label}{money.debt && p.nation && ` · yearly ${deficit(p.nation) > 0 ? 'deficit' : 'surplus'} ${Math.abs(deficit(p.nation)).toFixed(1)}%`}{money.perMonth !== undefined && ` (+${k(money.perMonth)}/mo)`}</span></div>}
           <div title={SYSTEM_RULES[home.systemId].meterBlurb}><b>{n0(p.sys.meter)}</b><span>{SYSTEM_RULES[home.systemId].meter}</span></div>
           <div><b>{n0(p.loyalty)}</b><span>{STANDING_LABEL[sys.advancement]}</span></div>
+          <div title="Chance a scandal hurts you. See the You tab."><b className={scandalRisk(p) >= 50 ? 'neg' : ''}>{scandalRisk(p)}</b><span>Scandal risk</span></div>
           <div><b>{p.actionsLeft}</b><span>Actions</span></div>
         </div>
-        {!phone && (
-          <div className="row">
-            <button onClick={nextTurn} disabled={blockedNext}>Next month →</button>
-            <button className="secondary small" onClick={quitToMenu}>Main menu</button>
-          </div>
-        )}
       </div>
 
-      {on('job') && c && (
-        <div className="panel">
-          <h3>Campaign: {OFFICE_NAMES[c.office]}{c.incumbent ? ' (re-election)' : ''}</h3>
-          <p>{c.monthsLeft} month{c.monthsLeft === 1 ? '' : 's'} to {sys.advancement === 'election' ? 'election day' : sys.advancement === 'shares' ? 'the shareholder vote' : 'the party decision'}.</p>
-          <div className="poll">
-            <div className="you" style={{ width: `${c.poll}%` }}>You {fmt(c.poll, 0)}%</div>
-            <div className="them">{c.rival.name} {fmt(100 - c.poll, 0)}%</div>
-          </div>
-          <p className="muted"><Portrait name={c.rival.name} size={28} /> Rival: {c.rival.name}, {c.rival.party} · popularity {n0(c.rival.popularity)} · funds ${n0(c.rival.funds)}k</p>
-          <p className="tip"><b>Tip:</b> {campaignTip(game)}</p>
-        </div>
-      )}
-
-      {on('job') && !c && !p.office && (
-        <div className="panel">
-          <h3>Out of office</h3>
-          <p>You lost your last race, but politics is a long game. Build up your popularity and funds, then pick your next run.</p>
-          <div className="actions">
-            {comebackOptions(game).map((o) => <button key={o} onClick={() => runAgain(o)}>Run for {OFFICE_NAMES[o]}</button>)}
-          </div>
-        </div>
-      )}
-
-      {on('voters') && <div className="panel">
-        <h3>Actions <span className="muted">({p.actionsLeft} left this month)</span></h3>
-        <div className="actions">
-          {actions.map((a) => {
-            const info = ACTION_INFO[a];
-            const locked = a === 'debate' && (!c || c.monthsLeft > 2);
-            return (
-              <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent || bill || voting || asking} onClick={() => act(a)}>
-                {info.label}<small>{info.hint}{info.cost ? ` · $${info.cost}k` : ''}</small>
+      {!phone && (
+        <nav className="topbar">
+          <div className="tabs-desk" role="tablist">
+            {TABS.map(([t, label]) => (
+              <button key={t} role="tab" aria-selected={tab === t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => goTab(t)}>
+                {label}{t === 'job' && needsAnswer && ' •'}
               </button>
-            );
-          })}
-        </div>
-      </div>}
-
-      {on('voters') && <VoterGroups />}
-      {on('people') && <SystemPanel />}
-      {on('people') && <People />}
-      {on('voters') && <FaithPanel />}
-
-      {on('job') && governor && (
-        <>
-          <StateOverview />
-          <Cities />
-          <Legislature />
-          <StateLaws />
-        </>
+            ))}
+          </div>
+          <span style={{ flex: 1 }} />
+          <button className="next" onClick={nextTurn} disabled={blockedNext}>Next month → <small>({p.actionsLeft} action{p.actionsLeft === 1 ? '' : 's'} left)</small></button>
+          <button className="secondary" onClick={quitToMenu}>Main menu</button>
+        </nav>
       )}
 
-      {on('job') && lawmaker && <Legislator />}
-      {on('job') && minister && <Cabinet />}
-      {on('job') && leader && <Nation part={phone ? 'job' : 'all'} />}
-      {phone && tab === 'world' && leader && <Diplomacy />}
+      <div className="tabpage">
+        <SubTabs tabs={SUBS[tab]} value={s} onChange={(v) => setSubs({ ...subs, [tab]: v })} />
 
-      {on('job') && !governor && !lawmaker && !minister && !leader && city && (
-        <div className="panel">
-          <h3>{city.name} <span className="muted">pop. {n0(city.population)}k</span></h3>
-          <div className="cols">
-            <div>
-              <Stat label="Happiness" value={city.happiness} />
-              <Stat label="Jobs" value={city.jobs} />
-              <Stat label="Services" value={city.services} />
-              <Stat label="Culture" value={city.culture} />
-              <Stat label="Crime" value={city.crime} good={false} />
-              <p>Treasury <b className={city.treasury < 0 ? 'neg' : ''}>${n0(city.treasury)}k</b> · Revenue ${n0(cityRevenue(city))}k/mo · Tax {fmt(city.taxRate)}%</p>
+        {tab === 'job' && c && (
+          <div className="panel">
+            <h3>Campaign: {OFFICE_NAMES[c.office]}{c.incumbent ? ' (re-election)' : ''}</h3>
+            <p>{c.monthsLeft} month{c.monthsLeft === 1 ? '' : 's'} to {sys.advancement === 'election' ? 'election day' : sys.advancement === 'shares' ? 'the shareholder vote' : 'the party decision'}.</p>
+            <div className="poll">
+              <div className="you" style={{ width: `${c.poll}%` }}>You {fmt(c.poll, 0)}%</div>
+              <div className="them">{c.rival.name} {fmt(100 - c.poll, 0)}%</div>
             </div>
-            {p.office ? <BudgetEditor key={`${game.turn}`} city={city} /> : <p className="muted">Win office to set the city budget.</p>}
+            <p className="muted"><Portrait name={c.rival.name} size={28} /> Rival: {c.rival.name}, {c.rival.party} · popularity {n0(c.rival.popularity)} · funds ${n0(c.rival.funds)}k</p>
+            <p className="tip"><b>Tip:</b> {campaignTip(game)} Campaign actions are under <button className="linkish" onClick={() => { setSubs({ ...subs, voters: 'actions' }); goTab('voters'); }}>Voters → Actions</button>.</p>
           </div>
-        </div>
-      )}
+        )}
 
-      {on('job') && kind === 'local' && city && <Council />}
-      {on('job') && kind === 'local' && city && <Projects />}
-      {on('job') && kind === 'local' && city && <Laws />}
-      {on('job') && p.office && (kind === 'local' || kind === 'regional') && <WorldContact />}
-      {on('job') && p.office && <HigherOffice />}
-
-      {on('world') && <div className="panel">
-        <h3>News</h3>
-        <ul className="news">{game.log.slice(0, 12).map((l, i) => <li key={i}>{l}</li>)}</ul>
-      </div>}
-
-      {on('world') && <CountryScores />}
-      {on('world') && <WorldPower />}
-
-      {on('world') && <div className="panel">
-        <h3>World {!phone && <button className="small secondary" onClick={() => setShowWorld(!showWorld)}>{showWorld ? 'Hide' : 'Show'}</button>}</h3>
-        {(showWorld || phone) && (<>
-          <p className="scroll-hint">Swipe the table sideways to see more.</p>
-          <div className="scroll">
-            <table>
-              <thead><tr><th>Country</th><th>Power</th><th>Army</th><th>Bloc</th><th>System</th><th>Leader</th><th>Approval</th><th>GDP $bn</th><th>Growth</th><th>Unemp.</th></tr></thead>
-              <tbody>
-                {Object.values(game.countries).map((x) => (
-                  <tr key={x.id} className={x.id === p.countryId ? 'home' : ''}>
-                    <td><Flag id={x.id} size={12} /> {countryLabel(x)}</td><td>{TIERS[tierOf(x)].name}</td><td>{Math.round(x.military)}{x.nuclear ? ' ☢' : ''}</td><td>{BLOCS[x.bloc].name}</td><td>{SYSTEMS[x.systemId].name}</td><td><LeaderLink id={x.id} size={22} />{x.junta ? ' (junta)' : ''}</td><td>{fmt(x.leader.approval, 0)}%</td>
-                    <td>{fmt(x.economy.gdpBn, 0)}</td><td>{fmt(x.economy.growth)}%</td><td>{fmt(x.economy.unemployment)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {tab === 'job' && !c && !p.office && (
+          <div className="panel">
+            <h3>Out of office</h3>
+            <p>You lost your last race, but politics is a long game. Build up your popularity and funds, then pick your next run.</p>
+            <div className="actions">
+              {comebackOptions(game).map((o) => <button key={o} onClick={() => runAgain(o)}>Run for {OFFICE_NAMES[o]}</button>)}
+            </div>
           </div>
-        </>)}
-      </div>}
+        )}
 
-      {on('more') && <CareerSoFar />}
-      {on('more') && <SaveMenu canSave />}
-      {on('more') && <AchievementsPanel />}
-      {on('more') && <SoundSettings />}
-      {phone && tab === 'more' && <button className="secondary" onClick={quitToMenu}>Main menu</button>}
+        {at('voters', 'actions') && <div className="panel">
+          <h3>Actions <span className="muted">({p.actionsLeft} left this month)</span></h3>
+          <div className="actions">
+            {actions.map((a) => {
+              const info = ACTION_INFO[a];
+              const locked = a === 'debate' && (!c || c.monthsLeft > 2);
+              return (
+                <button key={a} className="action" disabled={p.actionsLeft <= 0 || p.funds < info.cost || locked || !!p.pendingEvent || bill || voting || asking} onClick={() => act(a)}>
+                  {info.label}<small>{info.hint}{info.cost ? ` · $${info.cost}k` : ''}{a === 'fundraise' ? ' · some donors want favors' : ''}</small>
+                </button>
+              );
+            })}
+          </div>
+        </div>}
+        {at('voters', 'groups') && <VoterGroups />}
+        {at('voters', 'faith') && <FaithPanel />}
+
+        {at('people', 'politicians') && <People />}
+        {at('people', 'system') && <SystemPanel />}
+
+        {at('you', 'rep') && <Reputation />}
+        {at('you', 'home') && <HomeTurf />}
+        {at('you', 'scandals') && <Skeletons />}
+        {at('you', 'career') && <CareerSoFar />}
+
+        {governor && at('job', 'main') && <StateOverview />}
+        {governor && at('job', 'cities') && <Cities />}
+        {governor && at('job', 'legis') && <Legislature />}
+        {governor && at('job', 'laws') && <StateLaws />}
+        {lawmaker && at('job', 'main') && <Legislator />}
+        {minister && at('job', 'main') && <Cabinet />}
+        {leader && at('job', 'main') && <Nation part="job" />}
+        {leader && at('world', 'diplomacy') && <Diplomacy />}
+
+        {localCity && at('job', 'main') && (
+          <div className="panel">
+            <h3>{city!.name} <span className="muted">pop. {n0(city!.population)}k</span></h3>
+            <div className="cols">
+              <div>
+                <Stat label="Happiness" value={city!.happiness} />
+                <Stat label="Jobs" value={city!.jobs} />
+                <Stat label="Services" value={city!.services} />
+                <Stat label="Culture" value={city!.culture} />
+                <Stat label="Crime" value={city!.crime} good={false} />
+                <p>Treasury <b className={city!.treasury < 0 ? 'neg' : ''}>${n0(city!.treasury)}k</b> · Revenue ${n0(cityRevenue(city!))}k/mo · Tax {fmt(city!.taxRate)}%</p>
+              </div>
+              {p.office ? <BudgetEditor key={`${game.turn}`} city={city!} /> : <p className="muted">Win office to set the city budget.</p>}
+            </div>
+          </div>
+        )}
+
+        {kind === 'local' && city && at('job', 'council') && <Council />}
+        {kind === 'local' && city && at('job', 'projects') && <Projects />}
+        {kind === 'local' && city && at('job', 'laws') && <Laws />}
+        {abroad && at('job', 'abroad') && <WorldContact />}
+        {p.office && at('job', 'next') && <HigherOffice />}
+
+        {at('world', 'news') && <div className="panel">
+          <h3>News</h3>
+          <ul className="news">{game.log.slice(0, 30).map((l, i) => <li key={i}>{l}</li>)}</ul>
+        </div>}
+        {at('world', 'countries') && <div className="panel"><h3>World</h3><p className="scroll-hint">Swipe the table sideways to see more. Tap a header to sort.</p><WorldTable /></div>}
+        {at('world', 'power') && <WorldPower />}
+        {at('world', 'scores') && <CountryScores />}
+
+        {at('more', 'saves') && <SaveMenu canSave />}
+        {at('more', 'achievements') && <AchievementsPanel />}
+        {at('more', 'settings') && <><PlaytimePanel /><SoundSettings /></>}
+      </div>
 
       {phone && (
         <nav className="bottombar">
           <div className="tabs">
             {TABS.map(([t, label]) => (
-              <button key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => { setTab(t); window.scrollTo(0, 0); }}>
+              <button key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => goTab(t)}>
                 {label}{t === 'job' && needsAnswer && <i className="dot" />}
               </button>
             ))}
           </div>
-          <button className="next" onClick={nextTurn} disabled={blockedNext}>Next month · {p.actionsLeft} action{p.actionsLeft === 1 ? '' : 's'} left</button>
+          <div className="row nextrow">
+            <button className="next" onClick={nextTurn} disabled={blockedNext}>Next month · {p.actionsLeft} action{p.actionsLeft === 1 ? '' : 's'} left</button>
+            <button className="secondary menu" onClick={quitToMenu} aria-label="Main menu">Menu</button>
+          </div>
         </nav>
       )}
 
@@ -286,7 +316,7 @@ export function Game() {
             <div className="actions">
               {p.pendingEvent.choices.map((ch, i) => {
                 const m = moneyChange(p, ch.effects, home);
-                return <button key={i} className="action" onClick={() => resolveEvent(i)}>{ch.label}{eventExtras(ch.effects, home.systemId, contactById(p, p.pendingEvent!.contactId)?.name).map((x) => <small key={x.text} className={x.good ? 'pos' : 'neg'}>{x.text}</small>)}{m.map((t) => <small key={t} className="money">{t}</small>)}</button>;
+                return <button key={i} className="action" onClick={() => resolveEvent(i)}>{ch.label}<EffectLines e={ch.effects} />{eventExtras(ch.effects, home.systemId, contactById(p, p.pendingEvent!.contactId)?.name).map((x) => <small key={x.text} className={x.good ? 'pos' : 'neg'}>{x.text}</small>)}{m.map((t) => <small key={t} className="money">{t}</small>)}</button>;
               })}
             </div>
           </div>

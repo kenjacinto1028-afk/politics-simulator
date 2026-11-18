@@ -30,7 +30,10 @@ export function AchievementWatcher() {
 }
 
 export function AchievementsPanel() {
-  const have = loadUnlocked();
+  const game = useGame((s) => s.game);
+  // Saved badges plus anything this game has already earned (in case saving was blocked).
+  const have: Record<string, string> = { ...loadUnlocked() };
+  for (const id of earned(game)) have[id] ??= 'now';
   const n = ACHIEVEMENTS.filter((a) => have[a.id]).length;
   return (
     <div className="panel">

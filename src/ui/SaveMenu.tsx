@@ -14,7 +14,7 @@ export function SaveMenu({ canSave }: { canSave: boolean }) {
     const blob = new Blob([exportSave()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'politics-sim-save.json';
+    a.download = 'mandate-save.json';
     a.click();
     URL.revokeObjectURL(a.href);
   };

@@ -406,7 +406,7 @@ export const MORE_EVENTS: EventDef[] = [
     C('Stay independent', { contact: -6, popularity: 1 }, 'A politician refuses to trade endorsements.'),
   ], { about: 'peer' }),
   E('rel2-sister', 'Sister City Offer', 'The mayor, {name}, of a nearby city proposes a sister-city deal with {city}.', [
-    C('Sign it (-$15k)', { contact: 18, culture: 5, jobs: 2, treasury: -15, groups: { business: 3 } }, 'Two cities sign a sister-city agreement.'),
+    C('Sign it (-$15k)', { contact: 18, culture: 5, jobs: 2, treasury: -15, groups: { business: 3 }, feat: 'sister-city' }, 'Two cities sign a sister-city agreement.'),
     C('Pass for now', { contact: -8 }, 'A sister-city offer is put off.'),
   ], { about: 'peer', kinds: ['local'] }),
   E('rel2-joint', 'Joint Project', 'Governor {name} proposes a shared highway and rail project.', [
