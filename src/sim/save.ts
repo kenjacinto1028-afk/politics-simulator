@@ -9,10 +9,11 @@ import { clearOldJobs } from './career';
 import { newNation } from './nation';
 import { newContacts } from './people';
 import { newSystemState } from './systems';
+import { newWorld, seedSociety } from './society';
 import { geoOf, seedCountries, startingRelation } from '../data/countries';
 import { SYSTEMS } from '../data/systems';
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 export const SLOTS = ['autosave', 'slot1', 'slot2', 'slot3'] as const;
 export type SlotId = (typeof SLOTS)[number];
 
@@ -43,7 +44,16 @@ export function deserialize(text: string): GameState {
   if (file.version < 5) out = migrateV4(out);
   if (file.version < 6) out = migrateV5(out);
   if (file.version < 7) out = migrateV6(out);
+  if (file.version < 8) out = migrateV7(out);
   return out;
+}
+
+/** v7 saves predate country scores, policies and the shared world. */
+function migrateV7(g: GameState): GameState {
+  const countries = Object.fromEntries(Object.entries(g.countries).map(([id, c]) => [id, { ...c, society: c.society ?? seedSociety(c) }]));
+  const p = g.player;
+  const player = p?.nation ? { ...p, nation: { ...p.nation, policies: p.nation.policies ?? {} } } : p;
+  return { ...g, countries, player, world: g.world ?? newWorld() };
 }
 
 /** v6 saves predate world power: blocs, armies, exports and proxy wars. Relations keep their history. */

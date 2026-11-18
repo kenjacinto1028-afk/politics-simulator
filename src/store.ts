@@ -12,6 +12,8 @@ import { buyback, callReferendum, choosePatron, consultCoalition, defyCapital, e
 import { foreignAid, formAlliance, hostSummit } from './sim/nation';
 import { answerAlly, armsDeal, askAlly, backSide, inviteToBloc, joinBloc, leaveBloc } from './sim/geo';
 import type { BlocId } from './data/geo';
+import { setPolicy, spyOp } from './sim/society';
+import type { PolicyId } from './data/society';
 import { cutDeal, lobbyMember, meetGroup, nextOffice, proposeLaw, proposeProject, repealLaw } from './sim/mayor';
 import { browserKV, deserialize, loadFrom, saveTo, serialize, type SlotId } from './sim/save';
 import type { FaithId, GameState, GroupId, Nation, OfficeId, Region, SpendKey } from './sim/types';
@@ -49,6 +51,8 @@ interface Store {
   formAlliance: (countryId: string) => void;
   joinBloc: (bloc: BlocId) => void;
   leaveBloc: () => void;
+  setPolicy: (id: PolicyId, level: 0 | 1 | 2) => void;
+  spyOp: (countryId: string, kind: 'steal' | 'sabotage') => void;
   askAlly: (countryId: string, kind: 'aid' | 'troops') => void;
   answerAlly: (accept: boolean) => void;
   armsDeal: (countryId: string) => void;
@@ -132,6 +136,8 @@ export const useGame = create<Store>((set, get) => ({
   formAlliance: (id) => set((s) => ({ game: formAlliance(s.game, id) })),
   joinBloc: (b) => set((s) => ({ game: joinBloc(s.game, b) })),
   leaveBloc: () => set((s) => ({ game: leaveBloc(s.game) })),
+  setPolicy: (id, lv) => set((s) => ({ game: setPolicy(s.game, id, lv) })),
+  spyOp: (id, kind) => set((s) => ({ game: spyOp(s.game, id, kind, actionRng(s.game)) })),
   askAlly: (id, kind) => set((s) => ({ game: askAlly(s.game, id, kind, actionRng(s.game)) })),
   answerAlly: (accept) => set((s) => ({ game: answerAlly(s.game, accept) })),
   armsDeal: (id) => set((s) => ({ game: armsDeal(s.game, id) })),

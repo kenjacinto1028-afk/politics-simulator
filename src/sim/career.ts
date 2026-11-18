@@ -14,6 +14,8 @@ import { newNation, tickNation } from './nation';
 import { NATIONAL_EVENTS } from '../data/nation-content';
 import { MORE_EVENTS } from '../data/more-events';
 import { GEO_EVENTS } from '../data/geo-events';
+import { SOCIETY_EVENTS } from '../data/society-events';
+import { readValue } from './society';
 import { powerIndex } from './geo';
 import { FAITHS } from '../data/people';
 import { clearEndorsements, contactsByRole, endorsementBonus, faithEdge, newContacts, resetDeals, setRelation, tickContacts, tickFaith } from './people';
@@ -332,7 +334,8 @@ function eventPool(g: GameState): EventDef[] {
   const p = g.player!;
   const c = g.countries[p.countryId];
   const kind = kindOf(p.office) ?? 'out';
-  const extra = [...MORE_EVENTS, ...GEO_EVENTS].filter((e) => (e.kinds ? e.kinds.includes(kind) : kind !== 'out') && (!e.systems || e.systems.includes(c.systemId))
+  const met = (e: EventDef) => !e.when || ((e.when.above === undefined || readValue(g, c, e.when.stat) > e.when.above) && (e.when.below === undefined || readValue(g, c, e.when.stat) < e.when.below));
+  const extra = [...MORE_EVENTS, ...GEO_EVENTS, ...SOCIETY_EVENTS].filter((e) => met(e)).filter((e) => (e.kinds ? e.kinds.includes(kind) : kind !== 'out') && (!e.systems || e.systems.includes(c.systemId))
     && (e.minReligiosity === undefined || c.religiosity >= e.minReligiosity) && (!e.about || contactsByRole(g, e.about).length > 0));
   return [...(p.office ? basePool(p) : []), ...extra];
 }

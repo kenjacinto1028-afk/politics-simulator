@@ -5,11 +5,12 @@ import { tickPlayer } from './career';
 import { kindOf } from './offices';
 import { tickWorld } from './nation';
 import { tickGeo } from './geo';
+import { newWorld, tickSociety } from './society';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function newGame(worldSize: WorldSize = 25, seed = 1): GameState {
-  return { turn: 0, seed, year: 2026, month: 1, worldSize, player: null, countries: seedCountries(worldSize), conflicts: [], log: ['The world awaits.'] };
+  return { turn: 0, seed, year: 2026, month: 1, worldSize, player: null, countries: seedCountries(worldSize), conflicts: [], world: newWorld(), log: ['The world awaits.'] };
 }
 
 /** High-level monthly drift for any country. Detailed sim for the player nation comes later. */
@@ -30,7 +31,7 @@ export function advanceMonth(state: GameState, rng: Rng): GameState {
   for (const [id, c] of Object.entries(state.countries)) countries[id] = id === led ? c : tickCountry(c, rng);
   const month = state.month === 12 ? 1 : state.month + 1;
   const year = state.month === 12 ? state.year + 1 : state.year;
-  return tickPlayer(tickGeo(tickWorld({ ...state, turn: state.turn + 1, month, year, countries }, rng), rng), rng);
+  return tickPlayer(tickSociety(tickGeo(tickWorld({ ...state, turn: state.turn + 1, month, year, countries }, rng), rng), rng), rng);
 }
 
 /** Deterministic RNG for a given game moment; `salt` separates independent rolls within a turn. */

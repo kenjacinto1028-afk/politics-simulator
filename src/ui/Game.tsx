@@ -1,3 +1,4 @@
+import { CountryScores } from './Society';
 import { WorldPower } from './WorldPower';
 import { TIERS, tierOf } from '../sim/geo';
 import { BLOCS } from '../data/geo';
@@ -221,6 +222,7 @@ export function Game() {
         <ul className="news">{game.log.slice(0, 12).map((l, i) => <li key={i}>{l}</li>)}</ul>
       </div>}
 
+      {on('world') && <CountryScores />}
       {on('world') && <WorldPower />}
 
       {on('world') && <div className="panel">
